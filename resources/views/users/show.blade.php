@@ -38,5 +38,7 @@
     </x-card>
 
     @include('users._access')
+
+    @can('audit.view')<x-audit-timeline :model="$user" />@endcan
 </div>
 @endsection

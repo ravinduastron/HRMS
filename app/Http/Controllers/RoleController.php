@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -31,6 +32,7 @@ class RoleController extends Controller
             'description' => $data['description'] ?? null, 'is_active' => true,
         ]);
         $role->syncPermissions($data['permissions'] ?? []);
+        Audit::log('role.permissions_changed', $role, 'Permissions set at creation', null, ['permissions' => collect($data['permissions'] ?? [])->sort()->values()->all()]); // AUDIT
 
         return redirect()->route('roles.show', $role)->with('status', 'Role created.');
     }
@@ -57,7 +59,12 @@ class RoleController extends Controller
 
         $data = $request->validate($this->rules($role));
         $role->update(['name' => $data['name'], 'description' => $data['description'] ?? null]);
+        $before = $role->permissions()->pluck('name')->sort()->values()->all(); // AUDIT
         $role->syncPermissions($data['permissions'] ?? []);
+        $after = collect($data['permissions'] ?? [])->sort()->values()->all(); // AUDIT
+        if ($before !== $after) { // AUDIT
+            Audit::log('role.permissions_changed', $role, 'Permissions changed', ['permissions' => $before], ['permissions' => $after]); // AUDIT
+        }
 
         return redirect()->route('roles.show', $role)->with('status', 'Role updated.');
     }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PasswordController;
@@ -33,6 +34,11 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::put('users/{user}', [UserController::class, 'update'])->middleware('can:users.edit')->name('users.update');
         Route::patch('users/{user}/status', [UserController::class, 'toggle'])->middleware('can:users.toggle')->name('users.toggle');
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware('can:users.reset-password')->name('users.reset-password');
+
+        // Audit log
+        Route::get('audit', [AuditLogController::class, 'index'])->middleware('can:audit.view')->name('audit.index');
+        Route::get('audit/export', [AuditLogController::class, 'export'])->middleware('can:audit.export')->name('audit.export');
+        Route::get('audit/{log}', [AuditLogController::class, 'show'])->middleware('can:audit.view')->name('audit.show');
 
         // Roles
         Route::get('roles', [RoleController::class, 'index'])->middleware('can:roles.view')->name('roles.index');

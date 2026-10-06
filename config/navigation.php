@@ -68,7 +68,7 @@ return [
                 ['label' => 'Users',            'url' => '/admin/users', 'can' => 'users.view', 'live' => true],
                 ['label' => 'Roles & access',   'url' => '/admin/roles', 'can' => 'roles.view', 'live' => true],
                 ['label' => 'Company settings', 'url' => '/admin/company'],
-                ['label' => 'Audit log',        'url' => '/admin/audit'],
+                ['label' => 'Audit log',        'url' => '/admin/audit', 'can' => 'audit.view', 'live' => true],
             ]],
         ],
     ],

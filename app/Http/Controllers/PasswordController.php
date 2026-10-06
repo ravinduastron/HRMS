@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Rules\PolicyPassword;
+use App\Support\Audit;
 use App\Support\PasswordPolicy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,8 @@ class PasswordController extends Controller
         }
 
         PasswordPolicy::apply($user, $request->string('password')->toString(), temporary: false);
+
+        Audit::log('auth.password_changed', $user, 'User changed their own password'); // AUDIT
 
         return redirect()->route('home')->with('status', 'Your password has been changed.');
     }

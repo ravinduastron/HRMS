@@ -12,6 +12,10 @@ return [
         'users.toggle'         => 'Activate / deactivate users',
         'users.reset-password' => 'Reset user passwords',
     ],
+    'Audit' => [
+        'audit.view'   => 'View audit log',
+        'audit.export' => 'Export audit log',
+    ],
     'Roles' => [
         'roles.view'   => 'View roles',
         'roles.create' => 'Create roles',

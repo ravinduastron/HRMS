@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Rules\AstronEmail;
 use App\Rules\PolicyPassword;
+use App\Support\Audit;
 use App\Support\PasswordPolicy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,6 +54,8 @@ class UserController extends Controller
         ])->save();
         PasswordPolicy::apply($user, $data['password'], temporary: true);
         $user->syncRoles($roles);
+        Audit::log('user.roles_changed', $user, 'Roles assigned at creation', null, ['roles' => $roles->pluck('name')->sort()->values()->all()]); // AUDIT
+        Audit::log('user.credentials_emailed', $user, 'Temporary password emailed'); // AUDIT
 
         $sent = $this->sendCredentials($user, $data['password'], 'created');
 
@@ -81,7 +84,12 @@ class UserController extends Controller
         $user->forceFill([
             'name' => $data['name'], 'username' => $data['username'], 'email' => strtolower($data['email']),
         ])->save();
+        $before = $user->roles()->pluck('name')->sort()->values()->all(); // AUDIT
         $user->syncRoles($roles);
+        $after = $roles->pluck('name')->sort()->values()->all(); // AUDIT
+        if ($before !== $after) { // AUDIT
+            Audit::log('user.roles_changed', $user, 'Roles changed', ['roles' => $before], ['roles' => $after]); // AUDIT
+        }
 
         return redirect()->route('users.show', $user)->with('status', 'User updated.');
     }
@@ -97,6 +105,8 @@ class UserController extends Controller
             $user->clearFailedLogins();
         }
 
+        Audit::log($user->is_active ? 'user.activated' : 'user.deactivated', $user); // AUDIT
+
         return back()->with('status', $user->is_active ? 'User activated.' : 'User deactivated. They can no longer sign in.');
     }
 
@@ -108,6 +118,7 @@ class UserController extends Controller
 
         $plain = PasswordPolicy::generate($user->name, $user->username);
         PasswordPolicy::apply($user, $plain, temporary: true);
+        Audit::log('user.password_reset', $user, 'Password reset by administrator; temporary password emailed'); // AUDIT
 
         $sent = $this->sendCredentials($user, $plain, 'reset');
 
