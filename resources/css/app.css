@@ -27,4 +27,11 @@
 @layer base {
     [x-cloak] { display: none !important; }
     body { font-feature-settings: "tnum" 1; } /* tabular figures: amounts line up */
+
+    /* While a form is submitting (see app.js): block every link/button and show a progress cursor */
+    html[data-busy] { cursor: progress; }
+    html[data-busy] a,
+    html[data-busy] button { pointer-events: none; }
+    button:disabled { cursor: not-allowed; }
+    html[data-busy] button:disabled { cursor: progress; }
 }

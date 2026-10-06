@@ -1,6 +1,6 @@
 @php $creating = ! $user->exists; @endphp
 <form method="POST" action="{{ $creating ? route('users.store') : route('users.update', $user) }}"
-    x-data="userForm(@js(old('name', $user->name ?? '')), @js(old('username', $user->username ?? '')))" @submit="loading = true" class="space-y-6">
+    x-data="userForm(@js(old('name', $user->name ?? '')), @js(old('username', $user->username ?? '')))" class="space-y-6">
     @csrf
     @unless ($creating) @method('PUT') @endunless
 
@@ -61,6 +61,6 @@
 
     <div class="flex justify-end gap-2">
         <x-button :href="$creating ? route('users.index') : route('users.show', $user)" variant="secondary">Cancel</x-button>
-        <x-button type="submit"  loading="loading">{{ $creating ? 'Create user & email password' : 'Save changes' }}</x-button>
+        <x-button type="submit">{{ $creating ? 'Create user & email password' : 'Save changes' }}</x-button>
     </div>
 </form>

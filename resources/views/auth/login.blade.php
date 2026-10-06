@@ -9,7 +9,7 @@
         <p class="mt-1 text-sm text-slate-500">Use the username issued by your administrator.</p>
     </div>
 
-    <form method="POST" action="{{ route('login.store') }}" x-data="{ loading: false }" @submit="loading = true" class="mt-8 space-y-5">
+    <form method="POST" action="{{ route('login.store') }}" class="mt-8 space-y-5">
         @csrf
 
 
@@ -23,7 +23,7 @@
             <a href="#" class="text-sm font-medium text-brand-700 hover:underline">Forgot password?</a>
         </div>
 
-        <x-button type="submit" size="lg" class="w-full" loading="loading">Sign in</x-button>
+        <x-button type="submit" size="lg" class="w-full">Sign in</x-button>
     </form>
 </div>
 @endsection

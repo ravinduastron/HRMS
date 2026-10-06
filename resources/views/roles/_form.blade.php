@@ -2,7 +2,7 @@
     $creating = ! $role->exists;
     $selected = old('permissions', $creating ? [] : $role->permissions->pluck('name')->all());
 @endphp
-<form method="POST" action="{{ $creating ? route('roles.store') : route('roles.update', $role) }}" x-data="{ selected: @js($selected), loading: false }" @submit="loading = true" class="space-y-6">
+<form method="POST" action="{{ $creating ? route('roles.store') : route('roles.update', $role) }}" x-data="{ selected: @js($selected) }" class="space-y-6">
     @csrf
     @unless ($creating) @method('PUT') @endunless
 
@@ -40,6 +40,6 @@
 
     <div class="flex justify-end gap-2">
         <x-button :href="route('roles.index')" variant="secondary">Cancel</x-button>
-        <x-button type="submit" loading="loading">{{ $creating ? 'Create role' : 'Save changes' }}</x-button>
+        <x-button type="submit">{{ $creating ? 'Create role' : 'Save changes' }}</x-button>
     </div>
 </form>

@@ -4,13 +4,13 @@
 <x-page-header title="Change password" :description="$forced ? 'You must set a new password before continuing.' : null" />
 <div class="grid gap-6 lg:grid-cols-3">
     <x-card class="lg:col-span-2">
-        <form method="POST" action="{{ route('password.update') }}" x-data="{ loading: false }" @submit="loading = true" class="max-w-md space-y-5">
+        <form method="POST" action="{{ route('password.update') }}" class="max-w-md space-y-5">
             @csrf @method('PUT')
             <x-input name="current_password" type="password" label="Current password" autocomplete="current-password" required />
             <x-input name="password" type="password" label="New password" autocomplete="new-password" required />
             <x-input name="password_confirmation" type="password" label="Confirm new password" autocomplete="new-password" required />
             <div class="flex gap-2">
-                <x-button type="submit" loading="loading">Update password</x-button>
+                <x-button type="submit">Update password</x-button>
                 @unless ($forced)<x-button :href="route('profile')" variant="secondary">Cancel</x-button>@endunless
             </div>
         </form>
