@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@source "../views";
+@source "../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php";
+
+@theme {
+    --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+    /* Brand: deep ledger-green. Change this scale to re-theme the whole app. */
+    --color-brand-50:  #eef7f6;
+    --color-brand-100: #d5ece9;
+    --color-brand-200: #aad8d3;
+    --color-brand-300: #78bdb7;
+    --color-brand-400: #479d97;
+    --color-brand-500: #2d827d;
+    --color-brand-600: #236966;
+    --color-brand-700: #1f5451;
+    --color-brand-800: #1c4442;
+    --color-brand-900: #173a38;
+    --color-brand-950: #0b2221;
+
+    /* Accent: brass, used sparingly (active marker, notification dot). */
+    --color-accent-400: #d1a55a;
+    --color-accent-500: #b8893b;
+}
+
+@layer base {
+    [x-cloak] { display: none !important; }
+    body { font-feature-settings: "tnum" 1; } /* tabular figures: amounts line up */
+}
