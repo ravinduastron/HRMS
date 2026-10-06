@@ -27,5 +27,6 @@
             @yield('content')
         </div>
     </main>
+    <x-toast-container />
 </body>
 </html>

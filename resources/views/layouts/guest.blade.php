@@ -16,5 +16,6 @@
             <p class="mt-6 text-center text-xs text-slate-500">&copy; {{ date('Y') }} {{ config('payroll.company') }}</p>
         </div>
     </main>
+    <x-toast-container />
 </body>
 </html>

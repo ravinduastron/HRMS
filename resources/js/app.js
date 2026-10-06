@@ -68,7 +68,10 @@ function setBusy(form, submitter) {
             s.dataset.busyHidden = '1';
             s.style.display = 'none';
         });
-        if (!btn.querySelector('.animate-spin')) btn.insertAdjacentHTML('afterbegin', SPINNER);
+        // Reuse a spinner the button already shows (x-button "loading"); otherwise add ours.
+        // A hidden one (e.g. its Alpine variable is undefined) must not stop us.
+        const own = [...btn.querySelectorAll('svg.animate-spin')].some((s) => s.getClientRects().length > 0);
+        if (!own) btn.insertAdjacentHTML('afterbegin', SPINNER);
     }
 
     clearTimeout(busyTimer);
@@ -103,5 +106,50 @@ document.addEventListener('submit', (e) => {
 
 // Returning with the browser Back button must not show a frozen, disabled page.
 window.addEventListener('pageshow', (e) => { if (e.persisted) clearBusy(); });
+
+/*
+ * Toasts: short-lived confirmations (success etc.). Usage anywhere:
+ *   window.toast('Saved')                       // success, 5s
+ *   window.toast('Could not save', 'error')     // errors stay until dismissed
+ *   $dispatch('toast', { message: 'Copied', type: 'info' })   // from Alpine
+ * Laravel: redirect()->with('status', 'User created.') is shown as a toast automatically.
+ */
+const toastTimers = new Map();
+
+Alpine.store('toasts', {
+    items: [],
+    seq: 0,
+
+    add({ message, type = 'success', title = null, timeout } = {}) {
+        if (!message) return;
+        const id = ++this.seq;
+        const sticky = type === 'error' || type === 'warning'; // problems stay until dismissed
+        this.items.push({ id, message, type, title, leaving: false });
+        this.items = this.items.slice(-4); // never stack more than 4
+        const ms = timeout ?? (sticky ? 0 : 5000);
+        if (ms > 0) this.schedule(id, ms);
+    },
+
+    schedule(id, ms) {
+        this.cancel(id);
+        toastTimers.set(id, setTimeout(() => this.remove(id), ms));
+    },
+
+    cancel(id) {
+        clearTimeout(toastTimers.get(id));
+        toastTimers.delete(id);
+    },
+
+    remove(id) {
+        this.cancel(id);
+        const t = this.items.find((i) => i.id === id);
+        if (!t) return;
+        t.leaving = true; // lets the leave transition play
+        setTimeout(() => (this.items = this.items.filter((i) => i.id !== id)), 200);
+    },
+});
+
+window.toast = (message, type = 'success', options = {}) => Alpine.store('toasts').add({ message, type, ...options });
+window.addEventListener('toast', (e) => Alpine.store('toasts').add(e.detail));
 
 Alpine.start();
