@@ -3,12 +3,12 @@
 
 @section('content')
 @php
-    $d = fn ($date) => $date?->format('d M Y');
+    $d = fn ($date) => $date && !$date->isSameDay('1901-01-01') ? $date->format('d M Y') : '';
     // Add future modules here: set 'ready' => true once the tab partial exists (e.g. employees/tabs/_bank.blade.php).
     $tabs = [
         'profile'    => ['label' => 'Profile', 'ready' => true],
         'employment' => ['label' => 'Employment', 'ready' => true],
-        'bank'       => ['label' => 'Bank accounts', 'ready' => false],
+        'bank'       => ['label' => 'Bank accounts', 'ready' => true, 'visible' => auth()->user()->can('bank-accounts.view')],
         'salary'     => ['label' => 'Salary', 'ready' => false],
         'history'    => ['label' => 'History', 'ready' => true],
     ];
@@ -19,7 +19,7 @@
         'Mobile' => $employee->mobile, 'Email' => $employee->email, 'Permanent address' => $employee->full_address,
     ];
     $employment = [
-        'Employee no' => $employee->employee_no, 'MSPS no' => $employee->msps_no, 'Employment type' => $employee->emp_type,
+        'Employee no' => $employee->employee_no, 'EPF no' => $employee->msps_no, 'Employment type' => $employee->emp_type,
         'Job category' => $employee->ct_name, 'Designation' => $employee->dsg_name, 'Grade' => $employee->grade_name, 'Scheme' => $employee->scheme_name,
         'Department' => $employee->department, 'Section' => $employee->mihcm_section, 'Team' => $employee->team,
         'Date joined' => $d($employee->date_joined), 'Contract expiry' => $d($employee->contract_expiry_date),
@@ -50,9 +50,10 @@
     <span class="self-center text-xs text-slate-500">Last synced {{ $employee->last_synced_at?->diffForHumans() ?? 'never' }}</span>
 </div>
 
-<div x-data="{ tab: 'profile' }">
+<div x-data="{ tab: @js(array_key_exists(request()->string('tab')->toString(), $tabs) ? request()->string('tab')->toString() : 'profile') }">
     <div class="mb-4 flex gap-1 border-b border-slate-200" role="tablist">
         @foreach ($tabs as $key => $t)
+            @continue(! ($t['visible'] ?? true))
             @if ($t['ready'])
                 <button type="button" role="tab" @click="tab = '{{ $key }}'" :aria-selected="tab === '{{ $key }}'"
                     :class="tab === '{{ $key }}' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500 hover:text-slate-800'"
@@ -74,7 +75,8 @@
         </x-card>
     @endforeach
 
-    {{-- Future tabs: @include('employees.tabs._bank') / ('employees.tabs._salary'), each wrapped in x-show="tab === 'bank'" --}}
+    @can('bank-accounts.view')@include('employees.tabs._bank')@endcan
+    {{-- Future tabs (salary...): add a partial like employees/tabs/_bank.blade.php wrapped in x-show="tab === 'salary'" --}}
 
     <div x-show="tab === 'history'" x-cloak class="space-y-6">
         <x-card title="MiHCM sync changes" :padding="false">

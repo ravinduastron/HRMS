@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Bank;
 use App\Models\Employee;
 use App\Models\EmployeeSyncChange;
 use App\Models\EmployeeSyncRun;
@@ -59,8 +60,12 @@ class EmployeeController extends Controller
 
     public function show(Employee $employee): View
     {
+        $user = auth()->user();
+
         return view('employees.show', [
             'employee' => $employee,
+            'bankAccounts' => $user->can('bank-accounts.view') ? $employee->bankAccounts()->with(['bank', 'branch'])->orderByDesc('is_active')->orderBy('id')->get() : collect(),
+            'banks' => $user->can('bank-accounts.add') ? Bank::with('branches')->orderBy('name')->get() : collect(),
             'changes'  => $employee->syncChanges()->with('run')->latest('id')->limit(30)->get(),
         ]);
     }

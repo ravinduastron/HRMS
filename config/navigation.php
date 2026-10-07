@@ -66,6 +66,7 @@ return [
         'heading' => 'System',
         'items' => [
             ['label' => 'Administration', 'icon' => 'shield', 'children' => [
+                ['label' => 'Banks & branches', 'url' => '/admin/banks', 'can' => 'bank-master.view', 'live' => true],
                 ['label' => 'Users',            'url' => '/admin/users', 'can' => 'users.view', 'live' => true],
                 ['label' => 'Roles & access',   'url' => '/admin/roles', 'can' => 'roles.view', 'live' => true],
                 ['label' => 'Company settings', 'url' => '/admin/company'],

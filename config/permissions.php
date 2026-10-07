@@ -18,6 +18,18 @@ return [
         'employees.sync'     => 'Run MiHCM employee sync',
         'employees.sync-log' => 'View sync history',
     ],
+    'Bank accounts' => [
+        'bank-accounts.view'     => 'View employee bank accounts (masked)',
+        'bank-accounts.reveal'   => 'Show full account numbers',
+        'bank-accounts.add'      => 'Add employee bank accounts',
+        'bank-accounts.activate' => 'Change the active bank account',
+        'bank-accounts.remove'   => 'Remove employee bank accounts',
+    ],
+    'Banks & branches' => [
+        'bank-master.view'   => 'View banks and branches',
+        'bank-master.add'    => 'Add banks and branches',
+        'bank-master.remove' => 'Remove banks and branches',
+    ],
     'Audit' => [
         'audit.view'   => 'View audit log',
         'audit.export' => 'Export audit log',

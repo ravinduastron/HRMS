@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\BankMasterController;
+use App\Http\Controllers\EmployeeBankAccountController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeSyncController;
 use App\Http\Controllers\HomeController;
@@ -33,6 +35,10 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::post('sync', [EmployeeSyncController::class, 'store'])->middleware('can:employees.sync')->name('employees.sync.store');
         Route::get('sync/{run}', [EmployeeSyncController::class, 'show'])->middleware('can:employees.sync-log')->name('employees.sync.show');
         Route::get('{employee}', [EmployeeController::class, 'show'])->middleware('can:employees.view')->name('employees.show');
+        Route::post('{employee}/bank-accounts', [EmployeeBankAccountController::class, 'store'])->middleware('can:bank-accounts.add')->name('employees.bank-accounts.store');
+        Route::patch('{employee}/bank-accounts/{account}/activate', [EmployeeBankAccountController::class, 'activate'])->middleware('can:bank-accounts.activate')->name('employees.bank-accounts.activate');
+        Route::delete('{employee}/bank-accounts/{account}', [EmployeeBankAccountController::class, 'destroy'])->middleware('can:bank-accounts.remove')->name('employees.bank-accounts.destroy');
+        Route::get('{employee}/bank-accounts/{account}/reveal', [EmployeeBankAccountController::class, 'reveal'])->middleware('can:bank-accounts.reveal')->name('employees.bank-accounts.reveal');
         Route::patch('{employee}/status', [EmployeeController::class, 'toggle'])->middleware('can:employees.status')->name('employees.status');
     });
 
@@ -46,6 +52,14 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::put('users/{user}', [UserController::class, 'update'])->middleware('can:users.edit')->name('users.update');
         Route::patch('users/{user}/status', [UserController::class, 'toggle'])->middleware('can:users.toggle')->name('users.toggle');
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware('can:users.reset-password')->name('users.reset-password');
+
+        // Banks & branches (master data: add / remove only)
+        Route::get('banks', [BankMasterController::class, 'index'])->middleware('can:bank-master.view')->name('banks.index');
+        Route::post('banks', [BankMasterController::class, 'storeBank'])->middleware('can:bank-master.add')->name('banks.store');
+        Route::get('banks/{bank}', [BankMasterController::class, 'show'])->middleware('can:bank-master.view')->name('banks.show');
+        Route::delete('banks/{bank}', [BankMasterController::class, 'destroyBank'])->middleware('can:bank-master.remove')->name('banks.destroy');
+        Route::post('banks/{bank}/branches', [BankMasterController::class, 'storeBranch'])->middleware('can:bank-master.add')->name('banks.branches.store');
+        Route::delete('banks/{bank}/branches/{branch}', [BankMasterController::class, 'destroyBranch'])->middleware('can:bank-master.remove')->name('banks.branches.destroy');
 
         // Audit log
         Route::get('audit', [AuditLogController::class, 'index'])->middleware('can:audit.view')->name('audit.index');

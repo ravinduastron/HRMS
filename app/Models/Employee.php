@@ -6,6 +6,7 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Master record synced from MiHCM. Future modules (bank accounts, salary...) should hold `employee_id`
@@ -40,6 +41,16 @@ class Employee extends Model
     public function syncChanges(): HasMany
     {
         return $this->hasMany(EmployeeSyncChange::class);
+    }
+
+    public function bankAccounts(): HasMany
+    {
+        return $this->hasMany(BankAccount::class);
+    }
+
+    public function activeBankAccount(): HasOne
+    {
+        return $this->hasOne(BankAccount::class)->payable();
     }
 
     /** Employees that should be included when payroll runs. */
