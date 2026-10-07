@@ -12,6 +12,10 @@
         'salary'     => ['label' => 'Salary', 'ready' => false],
         'history'    => ['label' => 'History', 'ready' => true],
     ];
+    $initialTab = array_key_exists(request()->string('tab')->toString(), $tabs) ? request()->string('tab')->toString() : 'profile';
+    if ($errors->hasAny(['bank_id', 'bank_branch_id', 'account_number', 'account_holder_name'])) {
+        $initialTab = 'bank'; // a failed "add account" must reopen the Bank tab
+    }
     $profile = [
         'Full name' => $employee->full_name, 'Display name' => $employee->display_name, 'Title' => $employee->emp_title,
         'Calling name' => $employee->calling_name, 'Surname' => $employee->surname, 'NIC' => $employee->nic_no,
@@ -50,7 +54,8 @@
     <span class="self-center text-xs text-slate-500">Last synced {{ $employee->last_synced_at?->diffForHumans() ?? 'never' }}</span>
 </div>
 
-<div x-data="{ tab: @js(array_key_exists(request()->string('tab')->toString(), $tabs) ? request()->string('tab')->toString() : 'profile') }">
+<div x-data="{ tab: @js($initialTab) }"
+    x-init="$watch('tab', t => { const u = new URL(location.href); u.searchParams.set('tab', t); history.replaceState(null, '', u); })">
     <div class="mb-4 flex gap-1 border-b border-slate-200" role="tablist">
         @foreach ($tabs as $key => $t)
             @continue(! ($t['visible'] ?? true))

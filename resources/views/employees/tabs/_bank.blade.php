@@ -99,7 +99,7 @@
                         <label for="bank_branch_id" class="block text-sm font-medium text-slate-700">Branch</label>
                         <select id="bank_branch_id" name="bank_branch_id" x-model="branch" :disabled="!bank" required class="{{ $field }} disabled:bg-slate-50">
                             <option value="">Select a branch</option>
-                            <template x-for="b in (branches[bank] ?? [])" :key="b.id"><option :value="b.id" x-text="b.code + ' · ' + b.name"></option></template>
+                            <template x-for="b in (branches[bank] ?? [])" :key="b.id"><option :value="b.id" :selected="String(b.id) === String(branch)" x-text="b.code + ' · ' + b.name"></option></template>
                         </select>
                         @error('bank_branch_id')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
