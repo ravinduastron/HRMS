@@ -12,6 +12,12 @@ return [
         'users.toggle'         => 'Activate / deactivate users',
         'users.reset-password' => 'Reset user passwords',
     ],
+    'Employees' => [
+        'employees.view'     => 'View employees',
+        'employees.status'   => 'Activate / deactivate employees',
+        'employees.sync'     => 'Run MiHCM employee sync',
+        'employees.sync-log' => 'View sync history',
+    ],
     'Audit' => [
         'audit.view'   => 'View audit log',
         'audit.export' => 'Export audit log',

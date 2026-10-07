@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeSyncController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\ProfileController;
@@ -23,6 +25,16 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
     Route::get('/password/change', [PasswordController::class, 'edit'])->name('password.edit');
     Route::put('/password/change', [PasswordController::class, 'update'])->name('password.update');
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
+
+    // Employees (synced from MiHCM)
+    Route::prefix('employees')->group(function () {
+        Route::get('/', [EmployeeController::class, 'index'])->middleware('can:employees.view')->name('employees.index');
+        Route::get('sync', [EmployeeSyncController::class, 'index'])->middleware('can:employees.sync-log')->name('employees.sync.index');
+        Route::post('sync', [EmployeeSyncController::class, 'store'])->middleware('can:employees.sync')->name('employees.sync.store');
+        Route::get('sync/{run}', [EmployeeSyncController::class, 'show'])->middleware('can:employees.sync-log')->name('employees.sync.show');
+        Route::get('{employee}', [EmployeeController::class, 'show'])->middleware('can:employees.view')->name('employees.show');
+        Route::patch('{employee}/status', [EmployeeController::class, 'toggle'])->middleware('can:employees.status')->name('employees.status');
+    });
 
     Route::prefix('admin')->group(function () {
         // Users

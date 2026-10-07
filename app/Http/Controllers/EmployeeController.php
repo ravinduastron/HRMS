@@ -1,0 +1,81 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Employee;
+use App\Models\EmployeeSyncChange;
+use App\Models\EmployeeSyncRun;
+use App\Support\Audit;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class EmployeeController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $view = in_array($request->query('view'), ['new', 'deactivated'], true) ? $request->query('view') : 'all';
+        $period = in_array($request->query('period'), ['7', '30'], true) ? $request->query('period') : 'last';
+        $latestRun = EmployeeSyncRun::where('status', 'completed')->latest('id')->first();
+
+        // The sync log can live in another database, so no joins / whereHas: ask the log for
+        // [employee_id => when it happened], then filter employees by those ids.
+        $events = fn (string $type) => EmployeeSyncChange::query()
+            ->where('change_type', $type)->whereNotNull('employee_id')
+            ->when($period === 'last',
+                fn ($q) => $q->where('employee_sync_run_id', $latestRun?->id ?? 0),
+                fn ($q) => $q->where('created_at', '>=', now()->subDays((int) $period)))
+            ->groupBy('employee_id')->selectRaw('employee_id, max(created_at) as event_at')
+            ->pluck('event_at', 'employee_id');
+
+        $newMap = $events('created');
+        $deactivatedMap = $events('deactivated');
+        $map = $view === 'new' ? $newMap : ($view === 'deactivated' ? $deactivatedMap : null);
+
+        $employees = Employee::query()
+            ->filter($request->only(['q', 'status', 'payroll', 'department']))
+            ->when($map !== null, function ($q) use ($map) {
+                $ids = $map->sortDesc()->keys()->map(fn ($i) => (int) $i)->all();
+
+                return $ids
+                    ? $q->whereIn('id', $ids)->orderByRaw('FIELD(id, '.implode(',', $ids).')')
+                    : $q->whereRaw('1 = 0');
+            }, fn ($q) => $q->orderBy('full_name'))
+            ->paginate(20)->withQueryString();
+
+        if ($map !== null) {
+            $employees->getCollection()->each(fn ($e) => $e->setAttribute('event_at', $map[$e->id] ?? null));
+        }
+
+        return view('employees.index', [
+            'employees'   => $employees,
+            'view'        => $view,
+            'period'      => $period,
+            'latestRun'   => $latestRun,
+            'counts'      => ['all' => Employee::count(), 'new' => $newMap->count(), 'deactivated' => $deactivatedMap->count()],
+            'departments' => Employee::whereNotNull('department')->distinct()->orderBy('department')->pluck('department'),
+        ]);
+    }
+
+    public function show(Employee $employee): View
+    {
+        return view('employees.show', [
+            'employee' => $employee,
+            'changes'  => $employee->syncChanges()->with('run')->latest('id')->limit(30)->get(),
+        ]);
+    }
+
+    public function toggle(Request $request, Employee $employee): RedirectResponse
+    {
+        $field = $request->validate(['field' => ['required', 'in:is_active,is_payroll_active']])['field'];
+        $label = $field === 'is_active' ? 'Employee status' : 'Payroll status';
+        $old = (bool) $employee->{$field};
+
+        // The MiHCM sync never writes these two columns, so this choice survives every sync.
+        $employee->forceFill([$field => ! $old])->save();
+        Audit::log('employee.status_changed', $employee, "{$label}: ".($old ? 'activated → deactivated' : 'deactivated → activated'),
+            [$field => $old], [$field => ! $old]);
+
+        return back()->with('status', "{$label} ".($old ? 'deactivated.' : 'activated.'));
+    }
+}

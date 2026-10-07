@@ -1,6 +1,12 @@
 @php
-    $isActive = fn (string $url) => $url === '/' ? request()->is('/') : request()->is(trim($url, '/'), trim($url, '/').'/*');
     $visible = fn (array $item) => ! isset($item['can']) || auth()->user()?->can($item['can']);
+    $matches = fn (string $url) => $url === '/' ? request()->is('/') : request()->is(trim($url, '/'), trim($url, '/').'/*');
+
+    // Only the most specific (longest) matching link is active, so /employees/sync does not also light up /employees.
+    $bestUrl = collect(config('navigation'))->flatMap(fn ($section) => $section['items'])
+        ->flatMap(fn ($item) => $item['children'] ?? [$item])->filter($visible)->pluck('url')
+        ->filter($matches)->sortByDesc(fn ($url) => strlen($url))->first();
+    $isActive = fn (string $url) => $url === $bestUrl;
 @endphp
 
 {{-- Mobile backdrop --}}

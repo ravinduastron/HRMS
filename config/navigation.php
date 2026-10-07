@@ -16,7 +16,8 @@ return [
         'heading' => 'Workforce',
         'items' => [
             ['label' => 'Employees', 'icon' => 'users', 'children' => [
-                ['label' => 'Directory',   'url' => '/employees'],
+                ['label' => 'Directory',   'url' => '/employees', 'can' => 'employees.view', 'live' => true],
+                ['label' => 'Sync history', 'url' => '/employees/sync', 'can' => 'employees.sync-log', 'live' => true],
                 ['label' => 'Onboarding',  'url' => '/employees/onboarding'],
                 ['label' => 'Contracts',   'url' => '/employees/contracts'],
                 ['label' => 'Departments', 'url' => '/employees/departments'],
