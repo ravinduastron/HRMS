@@ -3,7 +3,7 @@
 
 @section('content')
 @php
-    $d = fn ($date) => $date && !$date->isSameDay('1901-01-01') ? $date->format('d M Y') : '';
+    $d = fn ($date) => $date?->format('d M Y');
     // Add future modules here: set 'ready' => true once the tab partial exists (e.g. employees/tabs/_bank.blade.php).
     $tabs = [
         'profile'    => ['label' => 'Profile', 'ready' => true],

@@ -95,6 +95,7 @@ class EmployeeMapper
             return null;
         }
 
-        return $d->year < 1900 ? null : $d->format('Y-m-d'); // MiHCM uses 0001-01-01 for "no date"
+        // MiHCM sends 0001-01-01 / 1901-01-01 for "no date"
+        return $d->lte(Carbon::create(1901, 1, 1)) ? null : $d->format('Y-m-d');
     }
 }
