@@ -23,6 +23,22 @@ class BankAccountService
         return hash_hmac('sha256', $bankId.'|'.$normalised, config('app.key'));
     }
 
+    /** Recompute every blind-index hash with the CURRENT app key (used after APP_KEY rotation). */
+    public static function rehashAll(): int
+    {
+        $n = 0;
+        BankAccount::withTrashed()->chunkById(200, function ($accounts) use (&$n) {
+            foreach ($accounts as $a) {
+                // query builder on purpose: the model forbids changing locked columns
+                DB::table('employee_bank_accounts')->where('id', $a->id)
+                    ->update(['account_number_hash' => self::hash($a->bank_id, self::normalise($a->account_number))]);
+                $n++;
+            }
+        });
+
+        return $n;
+    }
+
     public function add(Employee $employee, array $data, User $by): BankAccount
     {
         return DB::transaction(function () use ($employee, $data, $by) {
