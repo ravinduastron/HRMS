@@ -12,7 +12,7 @@
             </div>
             <div class="shrink-0 text-right text-xs text-slate-500">
                 <time title="{{ $e->occurred_at->format('d M Y H:i:s') }}">{{ $e->occurred_at->diffForHumans() }}</time><br>
-                <a href="{{ route('audit.show', $e) }}" class="text-brand-700 hover:underline">Details</a>
+                @can('schemes.all')<a href="{{ route('audit.show', $e) }}" class="text-brand-700 hover:underline">Details</a>@endcan
             </div>
         </div>
     @empty

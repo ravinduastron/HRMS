@@ -17,7 +17,7 @@ class BankMasterController extends Controller
     public function index(): View
     {
         return view('banks.index', [
-            'banks' => Bank::withCount(['branches', 'accounts' => fn ($q) => $q->withTrashed()])->orderBy('name')->get(),
+            'banks' => Bank::withCount(['branches', 'accounts' => fn ($q) => $q->withoutGlobalScopes()])->orderBy('name')->get(),
         ]);
     }
 
@@ -25,8 +25,8 @@ class BankMasterController extends Controller
     {
         return view('banks.show', [
             'bank'     => $bank,
-            'branches' => $bank->branches()->withCount(['accounts' => fn ($q) => $q->withTrashed()])->get(),
-            'inUse'    => BankAccount::withTrashed()->where('bank_id', $bank->id)->exists(),
+            'branches' => $bank->branches()->withCount(['accounts' => fn ($q) => $q->withoutGlobalScopes()])->get(),
+            'inUse'    => BankAccount::withoutGlobalScopes()->where('bank_id', $bank->id)->exists(),
         ]);
     }
 
@@ -43,7 +43,7 @@ class BankMasterController extends Controller
 
     public function destroyBank(Bank $bank): RedirectResponse
     {
-        if (BankAccount::withTrashed()->where('bank_id', $bank->id)->exists()) {
+        if (BankAccount::withoutGlobalScopes()->where('bank_id', $bank->id)->exists()) {
             return back()->with('error', "{$bank->name} is used by employee bank accounts (including removed ones), so it cannot be removed.");
         }
 
@@ -70,7 +70,7 @@ class BankMasterController extends Controller
     {
         abort_unless($branch->bank_id === $bank->id, 404);
 
-        if (BankAccount::withTrashed()->where('bank_branch_id', $branch->id)->exists()) {
+        if (BankAccount::withoutGlobalScopes()->where('bank_branch_id', $branch->id)->exists()) {
             return back()->with('error', "{$branch->name} is used by employee bank accounts (including removed ones), so it cannot be removed.");
         }
         $branch->delete();

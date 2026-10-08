@@ -53,10 +53,10 @@ class BankAccountService
             $number = self::normalise($data['account_number']);
             $hash = self::hash((int) $data['bank_id'], $number);
 
-            if (BankAccount::where('account_number_hash', $hash)->where('employee_id', $employee->id)->exists()) {
+            if (BankAccount::withoutGlobalScopes()->where('account_number_hash', $hash)->where('employee_id', $employee->id)->exists()) {
                 throw ValidationException::withMessages(['account_number' => 'This account is already added for this employee.']);
             }
-            if (! config('bank.allow_shared_accounts') && BankAccount::where('account_number_hash', $hash)->where('employee_id', '!=', $employee->id)->exists()) {
+            if (! config('bank.allow_shared_accounts') && BankAccount::withoutGlobalScopes()->where('account_number_hash', $hash)->where('employee_id', '!=', $employee->id)->exists()) {
                 throw ValidationException::withMessages(['account_number' => 'This account number is already registered to another employee.']);
             }
 

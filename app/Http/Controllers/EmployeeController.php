@@ -6,6 +6,7 @@ use App\Models\Bank;
 use App\Models\Employee;
 use App\Models\EmployeeSyncChange;
 use App\Models\EmployeeSyncRun;
+use App\Models\Scheme;
 use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,7 +35,7 @@ class EmployeeController extends Controller
         $map = $view === 'new' ? $newMap : ($view === 'deactivated' ? $deactivatedMap : null);
 
         $employees = Employee::query()
-            ->filter($request->only(['q', 'status', 'payroll', 'department']))
+            ->with('scheme')->filter($request->only(['q', 'status', 'payroll', 'department', 'scheme']))
             ->when($map !== null, function ($q) use ($map) {
                 $ids = $map->sortDesc()->keys()->map(fn ($i) => (int) $i)->all();
 
@@ -53,7 +54,9 @@ class EmployeeController extends Controller
             'view'        => $view,
             'period'      => $period,
             'latestRun'   => $latestRun,
-            'counts'      => ['all' => Employee::count(), 'new' => $newMap->count(), 'deactivated' => $deactivatedMap->count()],
+            // counted through Employee so the scheme scope applies (the log itself knows every employee)
+            'counts'      => ['all' => Employee::count(), 'new' => Employee::whereIn('id', $newMap->keys())->count(), 'deactivated' => Employee::whereIn('id', $deactivatedMap->keys())->count()],
+            'schemes'     => Scheme::visibleTo(auth()->user())->orderBy('name')->get(),
             'departments' => Employee::whereNotNull('department')->distinct()->orderBy('department')->pluck('department'),
         ]);
     }

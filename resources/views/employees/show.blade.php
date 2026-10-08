@@ -3,7 +3,7 @@
 
 @section('content')
 @php
-    $d = fn ($date) => $date?->format('d M Y');
+    $d = fn ($date) => $date && !$date->isSameDay('1901-01-01') ? $date->format('d M Y') : '';
     // Add future modules here: set 'ready' => true once the tab partial exists (e.g. employees/tabs/_bank.blade.php).
     $tabs = [
         'profile'    => ['label' => 'Profile', 'ready' => true],
@@ -91,7 +91,7 @@
                         <x-badge :color="['created' => 'green', 'imported' => 'slate', 'updated' => 'amber', 'deactivated' => 'red', 'reactivated' => 'brand'][$c->change_type] ?? 'slate'">{{ $c->change_type }}</x-badge>
                         <div class="mt-2">@include('employees._diff', ['changes' => $c->changes])</div>
                     </div>
-                    <a href="{{ route('employees.sync.show', $c->employee_sync_run_id) }}" class="shrink-0 text-xs text-brand-700 hover:underline">Sync #{{ $c->employee_sync_run_id }} · {{ $c->created_at->format('d M Y H:i') }}</a>
+                    @can('schemes.all')<a href="{{ route('employees.sync.show', $c->employee_sync_run_id) }}" class="shrink-0 text-xs text-brand-700 hover:underline">Sync #{{ $c->employee_sync_run_id }} · {{ $c->created_at->format('d M Y H:i') }}</a>@else<span class="shrink-0 text-xs text-slate-500">{{ $c->created_at->format('d M Y H:i') }}</span>@endcan
                 </div>
             @empty
                 <p class="px-5 py-4 text-sm text-slate-500">No sync changes recorded.</p>

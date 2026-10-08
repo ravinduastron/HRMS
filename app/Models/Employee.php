@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Scopes\SchemeScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -20,6 +22,16 @@ class Employee extends Model
 
     protected array $auditHidden  = ['nic_no'];
     protected array $auditExclude = ['last_synced_at'];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new SchemeScope);
+    }
+
+    public function scheme(): BelongsTo
+    {
+        return $this->belongsTo(Scheme::class);
+    }
 
     protected function casts(): array
     {
@@ -69,6 +81,7 @@ class Employee extends Model
             ->when(($f['status'] ?? null) === 'inactive', fn ($q) => $q->where('is_active', false))
             ->when(($f['payroll'] ?? null) === 'active', fn ($q) => $q->where('is_payroll_active', true))
             ->when(($f['payroll'] ?? null) === 'inactive', fn ($q) => $q->where('is_payroll_active', false))
+            ->when($f['scheme'] ?? null, fn ($q, $s) => $q->where('scheme_id', $s))
             ->when($f['department'] ?? null, fn ($q, $d) => $q->where('department', $d));
     }
 

@@ -1,5 +1,6 @@
 @php
-    $visible = fn (array $item) => ! isset($item['can']) || auth()->user()?->can($item['can']);
+    $visible = fn (array $item) => (! isset($item['can']) || auth()->user()?->can($item['can']))
+        && (empty($item['all_schemes']) || auth()->user()?->can('schemes.all')); // 'all_schemes': hidden from scheme-restricted users
     $matches = fn (string $url) => $url === '/' ? request()->is('/') : request()->is(trim($url, '/'), trim($url, '/').'/*');
 
     // Only the most specific (longest) matching link is active, so /employees/sync does not also light up /employees.

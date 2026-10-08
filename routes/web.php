@@ -10,6 +10,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SchemeController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\EnforceAccountPolicy;
 use Illuminate\Support\Facades\Route;
@@ -31,9 +32,9 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
     // Employees (synced from MiHCM)
     Route::prefix('employees')->group(function () {
         Route::get('/', [EmployeeController::class, 'index'])->middleware('can:employees.view')->name('employees.index');
-        Route::get('sync', [EmployeeSyncController::class, 'index'])->middleware('can:employees.sync-log')->name('employees.sync.index');
-        Route::post('sync', [EmployeeSyncController::class, 'store'])->middleware('can:employees.sync')->name('employees.sync.store');
-        Route::get('sync/{run}', [EmployeeSyncController::class, 'show'])->middleware('can:employees.sync-log')->name('employees.sync.show');
+        Route::get('sync', [EmployeeSyncController::class, 'index'])->middleware(['can:employees.sync-log', 'can:schemes.all'])->name('employees.sync.index');
+        Route::post('sync', [EmployeeSyncController::class, 'store'])->middleware(['can:employees.sync', 'can:schemes.all'])->name('employees.sync.store');
+        Route::get('sync/{run}', [EmployeeSyncController::class, 'show'])->middleware(['can:employees.sync-log', 'can:schemes.all'])->name('employees.sync.show');
         Route::get('{employee}', [EmployeeController::class, 'show'])->middleware('can:employees.view')->name('employees.show');
         Route::post('{employee}/bank-accounts', [EmployeeBankAccountController::class, 'store'])->middleware('can:bank-accounts.add')->name('employees.bank-accounts.store');
         Route::patch('{employee}/bank-accounts/{account}/activate', [EmployeeBankAccountController::class, 'activate'])->middleware('can:bank-accounts.activate')->name('employees.bank-accounts.activate');
@@ -61,10 +62,16 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::post('banks/{bank}/branches', [BankMasterController::class, 'storeBranch'])->middleware('can:bank-master.add')->name('banks.branches.store');
         Route::delete('banks/{bank}/branches/{branch}', [BankMasterController::class, 'destroyBranch'])->middleware('can:bank-master.remove')->name('banks.branches.destroy');
 
+        // Schemes (all-scheme administrators only)
+        Route::get('schemes', [SchemeController::class, 'index'])->middleware(['can:schemes.view', 'can:schemes.all'])->name('schemes.index');
+        Route::get('schemes/{scheme}', [SchemeController::class, 'show'])->middleware(['can:schemes.view', 'can:schemes.all'])->name('schemes.show');
+        Route::put('schemes/{scheme}', [SchemeController::class, 'update'])->middleware(['can:schemes.edit', 'can:schemes.all'])->name('schemes.update');
+        Route::put('schemes/{scheme}/members', [SchemeController::class, 'members'])->middleware(['can:schemes.allocate', 'can:schemes.all'])->name('schemes.members');
+
         // Audit log
-        Route::get('audit', [AuditLogController::class, 'index'])->middleware('can:audit.view')->name('audit.index');
-        Route::get('audit/export', [AuditLogController::class, 'export'])->middleware('can:audit.export')->name('audit.export');
-        Route::get('audit/{log}', [AuditLogController::class, 'show'])->middleware('can:audit.view')->name('audit.show');
+        Route::get('audit', [AuditLogController::class, 'index'])->middleware(['can:audit.view', 'can:schemes.all'])->name('audit.index');
+        Route::get('audit/export', [AuditLogController::class, 'export'])->middleware(['can:audit.export', 'can:schemes.all'])->name('audit.export');
+        Route::get('audit/{log}', [AuditLogController::class, 'show'])->middleware(['can:audit.view', 'can:schemes.all'])->name('audit.show');
 
         // Roles
         Route::get('roles', [RoleController::class, 'index'])->middleware('can:roles.view')->name('roles.index');

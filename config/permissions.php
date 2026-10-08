@@ -30,6 +30,12 @@ return [
         'bank-master.add'    => 'Add banks and branches',
         'bank-master.remove' => 'Remove banks and branches',
     ],
+    'Schemes' => [
+        'schemes.all'      => 'Access ALL schemes (no employee restriction)',
+        'schemes.view'     => 'View schemes',
+        'schemes.edit'     => 'Edit schemes',
+        'schemes.allocate' => 'Allocate schemes to users',
+    ],
     'Audit' => [
         'audit.view'   => 'View audit log',
         'audit.export' => 'Export audit log',

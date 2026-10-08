@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Scopes\BankAccountScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,6 +32,8 @@ class BankAccount extends Model
 
     protected static function booted(): void
     {
+        static::addGlobalScope(new BankAccountScope);
+
         static::updating(function (self $m) {
             if ($m->isDirty(self::LOCKED)) {
                 throw new LogicException('Bank accounts cannot be edited. Remove the account and add a new one.');

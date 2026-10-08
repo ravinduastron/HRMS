@@ -59,6 +59,21 @@
         @error('roles.*')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
     </x-card>
 
+    @if (($schemes ?? collect())->isNotEmpty())
+        <x-card title="Scheme access">
+            @php $selectedSchemes = collect(old('schemes', $user->schemes->pluck('id')->all()))->map(fn ($i) => (int) $i)->all(); @endphp
+            <p class="mb-3 text-sm text-slate-500">The user can see and manage only employees in the schemes ticked here. With none ticked they see no employees (unless a role gives them all-scheme access).</p>
+            <div class="grid gap-3 sm:grid-cols-2">
+                @foreach ($schemes as $s)
+                    <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 p-3 text-sm hover:bg-slate-50 has-checked:border-brand-500 has-checked:bg-brand-50">
+                        <input type="checkbox" name="schemes[]" value="{{ $s->id }}" @checked(in_array($s->id, $selectedSchemes)) class="size-4 accent-brand-700">
+                        <span class="font-medium text-slate-900">{{ $s->name }}</span>
+                    </label>
+                @endforeach
+            </div>
+        </x-card>
+    @endif
+
     <div class="flex justify-end gap-2">
         <x-button :href="$creating ? route('users.index') : route('users.show', $user)" variant="secondary">Cancel</x-button>
         <x-button type="submit">{{ $creating ? 'Create user & email password' : 'Save changes' }}</x-button>

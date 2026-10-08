@@ -17,7 +17,7 @@ return [
         'items' => [
             ['label' => 'Employees', 'icon' => 'users', 'children' => [
                 ['label' => 'Directory',   'url' => '/employees', 'can' => 'employees.view', 'live' => true],
-                ['label' => 'Sync history', 'url' => '/employees/sync', 'can' => 'employees.sync-log', 'live' => true],
+                ['label' => 'Sync history', 'url' => '/employees/sync', 'can' => 'employees.sync-log', 'all_schemes' => true, 'live' => true],
                 ['label' => 'Onboarding',  'url' => '/employees/onboarding'],
                 ['label' => 'Contracts',   'url' => '/employees/contracts'],
                 ['label' => 'Departments', 'url' => '/employees/departments'],
@@ -67,10 +67,11 @@ return [
         'items' => [
             ['label' => 'Administration', 'icon' => 'shield', 'children' => [
                 ['label' => 'Banks & branches', 'url' => '/admin/banks', 'can' => 'bank-master.view', 'live' => true],
+                ['label' => 'Schemes', 'url' => '/admin/schemes', 'can' => 'schemes.view', 'all_schemes' => true, 'live' => true],
                 ['label' => 'Users',            'url' => '/admin/users', 'can' => 'users.view', 'live' => true],
                 ['label' => 'Roles & access',   'url' => '/admin/roles', 'can' => 'roles.view', 'live' => true],
                 ['label' => 'Company settings', 'url' => '/admin/company'],
-                ['label' => 'Audit log',        'url' => '/admin/audit', 'can' => 'audit.view', 'live' => true],
+                ['label' => 'Audit log',        'url' => '/admin/audit', 'can' => 'audit.view', 'all_schemes' => true, 'live' => true],
             ]],
         ],
     ],

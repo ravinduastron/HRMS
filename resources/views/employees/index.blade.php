@@ -7,9 +7,9 @@
     $tab = fn ($v) => route('employees.index', array_filter(['view' => $v === 'all' ? null : $v, 'period' => $v === 'all' ? null : ($period === 'last' ? null : $period)]));
     $mihcmColor = ['Active' => 'green', 'Inactive' => 'amber', 'Removed' => 'red'];
 @endphp
-<x-page-header title="Employees" :description="$latestRun ? 'Last MiHCM sync '.$latestRun->finished_at?->diffForHumans().' · '.$latestRun->fetched_count.' records' : 'No MiHCM sync has completed yet.'">
+<x-page-header title="Employees" :description="$latestRun ? 'Last MiHCM sync '.$latestRun->finished_at?->diffForHumans().(auth()->user()->can('schemes.all') ? ' · '.$latestRun->fetched_count.' records' : '') : 'No MiHCM sync has completed yet.'">
     <x-slot:actions>
-        @can('employees.sync-log')<x-button :href="route('employees.sync.index')" variant="secondary">Sync history</x-button>@endcan
+        @if (auth()->user()->can('employees.sync-log') && auth()->user()->can('schemes.all'))<x-button :href="route('employees.sync.index')" variant="secondary">Sync history</x-button>@endif
     </x-slot:actions>
 </x-page-header>
 
@@ -34,11 +34,13 @@
 </div>
 
 <x-card :padding="false">
-    <form method="GET" class="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-5">
+    <form method="GET" class="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-6">
         <input type="hidden" name="view" value="{{ $view === 'all' ? '' : $view }}"><input type="hidden" name="period" value="{{ $period === 'last' ? '' : $period }}">
         <input type="search" name="q" value="{{ request('q') }}" placeholder="Name, employee no, NIC, email" class="{{ $field }} lg:col-span-2">
         <select name="department" class="{{ $field }}"><option value="">All departments</option>
             @foreach ($departments as $d)<option @selected(request('department') === $d)>{{ $d }}</option>@endforeach</select>
+        <select name="scheme" class="{{ $field }}"><option value="">All schemes</option>
+            @foreach ($schemes as $s)<option value="{{ $s->id }}" @selected(request('scheme') == $s->id)>{{ $s->name }}</option>@endforeach</select>
         <select name="status" class="{{ $field }}"><option value="">Any status</option>
             <option value="active" @selected(request('status') === 'active')>Active</option><option value="inactive" @selected(request('status') === 'inactive')>Inactive</option></select>
         <div class="flex gap-2">
@@ -72,7 +74,7 @@
                     </div>
                 </td>
                 <td class="px-5 py-3">{{ $e->department ?? '—' }}<p class="text-xs text-slate-500">{{ $e->mihcm_section }}</p></td>
-                <td class="px-5 py-3">{{ $e->dsg_name ?? '—' }}</td>
+                <td class="px-5 py-3">{{ $e->dsg_name ?? '—' }}@if ($e->scheme)<p class="text-xs text-slate-500">{{ $e->scheme->name }}</p>@endif</td>
                 <td class="whitespace-nowrap px-5 py-3 text-slate-500">
                     {{ $view === 'all' ? $e->date_joined?->format('d M Y') : \Illuminate\Support\Carbon::parse($e->event_at)->format('d M Y H:i') }}
                 </td>
@@ -99,7 +101,7 @@
             </tr>
         @empty
             <tr><td colspan="7" class="px-5 py-10 text-center text-slate-500">
-                @if ($view === 'all') No employees found. @can('employees.sync-log')Run a sync from <a class="text-brand-700 underline" href="{{ route('employees.sync.index') }}">Sync history</a>.@endcan
+                @if ($view === 'all') No employees found. @if (auth()->user()->can('employees.sync-log') && auth()->user()->can('schemes.all'))Run a sync from <a class="text-brand-700 underline" href="{{ route('employees.sync.index') }}">Sync history</a>.@else If you expect to see employees here, ask an administrator to allocate your schemes.@endif
                 @else Nothing {{ $view === 'new' ? 'new' : 'deactivated' }} in this period. @endif
             </td></tr>
         @endforelse

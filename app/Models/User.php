@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -21,6 +22,7 @@ class User extends Authenticatable
     protected $hidden = ['password', 'remember_token'];
 
     protected ?Collection $permissionCache = null;
+    protected ?array $schemeIdCache = null;
 
     protected function casts(): array
     {
@@ -38,6 +40,17 @@ class User extends Authenticatable
     public function passwordHistories(): HasMany
     {
         return $this->hasMany(PasswordHistory::class);
+    }
+
+    public function schemes(): BelongsToMany
+    {
+        return $this->belongsToMany(Scheme::class)->withTimestamps();
+    }
+
+    /** IDs of the schemes this user may work with (cached per request). */
+    public function schemeIds(): array
+    {
+        return $this->schemeIdCache ??= $this->schemes()->pluck('schemes.id')->all();
     }
 
     /* ---------- Permissions: only ACTIVE roles grant access ---------- */

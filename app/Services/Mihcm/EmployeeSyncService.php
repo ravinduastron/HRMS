@@ -5,6 +5,7 @@ namespace App\Services\Mihcm;
 use App\Models\Employee;
 use App\Models\EmployeeSyncChange;
 use App\Models\EmployeeSyncRun;
+use App\Models\Scheme;
 use App\Models\User;
 use App\Support\Audit;
 use Illuminate\Support\Facades\DB;
@@ -66,7 +67,28 @@ class EmployeeSyncService
     {
         $c = array_fill_keys(['fetched', 'created', 'updated', 'unchanged', 'deactivated', 'reactivated', 'skipped'], 0);
         $key = fn (?string $no) => mb_strtolower(trim((string) $no));
-        $existing = Employee::all()->keyBy(fn ($e) => $key($e->employee_no));
+        // withoutGlobalScopes: the sync must always see EVERY employee, even if it runs inside a signed-in request
+        $existing = Employee::withoutGlobalScopes()->get()->keyBy(fn ($e) => $key($e->employee_no));
+
+        // Schemes: matched on MiHCM name; unknown ones are created (with no users allocated yet)
+        $schemes = Scheme::whereNotNull('mihcm_name')->get()->keyBy(fn ($s) => mb_strtolower($s->mihcm_name));
+        $schemeNames = Scheme::pluck('name')->map(fn ($n) => mb_strtolower($n))->flip();
+        $newSchemes = [];
+        $schemeId = function (?string $name) use (&$schemes, &$schemeNames, &$newSchemes): ?int {
+            if (! $name) {
+                return null;
+            }
+            $k = mb_strtolower($name);
+            if (! $schemes->has($k)) {
+                $display = $schemeNames->has($k) ? $name.' (MiHCM)' : $name; // avoid clashing with a local scheme name
+                $scheme = Scheme::create(['name' => $display, 'mihcm_name' => $name, 'source' => 'mihcm']);
+                $schemes->put($k, $scheme);
+                $schemeNames->put(mb_strtolower($display), true);
+                $newSchemes[] = $name;
+            }
+
+            return $schemes->get($k)->id;
+        };
         $baseline = $existing->isEmpty();
         $now = now();
         $seen = [];
@@ -102,6 +124,7 @@ class EmployeeSyncService
                 continue;
             }
             $seen[$k] = true;
+            $attrs['scheme_id'] = $schemeId($attrs['scheme_name'] ?? null);
 
             $employee = $existing->get($k);
 
@@ -131,6 +154,10 @@ class EmployeeSyncService
             $record($employee, $type, $diff);
         }
 
+        if ($newSchemes) {
+            $notes[] = 'New scheme(s) from MiHCM: '.implode(', ', array_unique($newSchemes)).'. No users are allocated to them yet, so only users with all-scheme access can see these employees.';
+        }
+
         // Employees the API no longer returns (only trusted after a COMPLETE fetch, and capped by a safety threshold)
         $absent = $existing->filter(fn ($e) => ! isset($seen[$key($e->employee_no)]) && $e->mihcm_active && ! $e->mihcm_deleted);
         $limit = config('mihcm.max_missing_percent');
@@ -145,7 +172,7 @@ class EmployeeSyncService
         }
 
         foreach (array_chunk($touched, 1000) as $ids) { // toBase(): no updated_at bump, no per-row audit noise
-            Employee::query()->whereIn('id', $ids)->toBase()->update(['last_synced_at' => $now]);
+            Employee::withoutGlobalScopes()->whereIn('id', $ids)->toBase()->update(['last_synced_at' => $now]);
         }
 
         return [
@@ -164,7 +191,7 @@ class EmployeeSyncService
         $mask = config('audit.mask');
         $plain = fn ($v) => $v instanceof \DateTimeInterface ? $v->format('Y-m-d') : $v;
 
-        return collect(array_keys($e->getDirty()))->mapWithKeys(fn ($k) => [
+        return collect(array_keys($e->getDirty()))->reject(fn ($k) => $k === 'scheme_id')->mapWithKeys(fn ($k) => [
             $k => in_array($k, $hidden, true)
                 ? ['old' => $mask, 'new' => $mask]
                 : ['old' => $plain($e->getOriginal($k)), 'new' => $plain($e->getAttribute($k))],

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\TemporaryPasswordMail;
 use App\Models\Role;
+use App\Models\Scheme;
 use App\Models\User;
 use App\Rules\AstronEmail;
 use App\Rules\PolicyPassword;
@@ -33,7 +34,7 @@ class UserController extends Controller
 
     public function create(): View
     {
-        return view('users.create', ['user' => new User, 'roles' => Role::orderBy('name')->get()]);
+        return view('users.create', ['user' => new User, 'roles' => Role::orderBy('name')->get(), 'schemes' => $this->allocatableSchemes()]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -54,6 +55,7 @@ class UserController extends Controller
         ])->save();
         PasswordPolicy::apply($user, $data['password'], temporary: true);
         $user->syncRoles($roles);
+        $this->syncSchemes($request, $user, $data['schemes'] ?? []);
         Audit::log('user.roles_changed', $user, 'Roles assigned at creation', null, ['roles' => $roles->pluck('name')->sort()->values()->all()]); // AUDIT
         Audit::log('user.credentials_emailed', $user, 'Temporary password emailed'); // AUDIT
 
@@ -68,12 +70,12 @@ class UserController extends Controller
 
     public function show(User $user): View
     {
-        return view('users.show', ['user' => $user->load('roles.permissions')]);
+        return view('users.show', ['user' => $user->load(['roles.permissions', 'schemes'])]);
     }
 
     public function edit(User $user): View
     {
-        return view('users.edit', ['user' => $user->load('roles'), 'roles' => Role::orderBy('name')->get()]);
+        return view('users.edit', ['user' => $user->load(['roles', 'schemes']), 'roles' => Role::orderBy('name')->get(), 'schemes' => $this->allocatableSchemes()]);
     }
 
     public function update(Request $request, User $user): RedirectResponse
@@ -87,6 +89,7 @@ class UserController extends Controller
         $before = $user->roles()->pluck('name')->sort()->values()->all(); // AUDIT
         $user->syncRoles($roles);
         $after = $roles->pluck('name')->sort()->values()->all(); // AUDIT
+        $this->syncSchemes($request, $user, $data['schemes'] ?? []);
         if ($before !== $after) { // AUDIT
             Audit::log('user.roles_changed', $user, 'Roles changed', ['roles' => $before], ['roles' => $after]); // AUDIT
         }
@@ -137,7 +140,35 @@ class UserController extends Controller
             'email'    => ['required', 'string', 'email:rfc', 'max:255', new AstronEmail, Rule::unique('users', 'email')->ignore($user)],
             'roles'    => ['required', 'array', 'min:1'],
             'roles.*'  => ['integer', Rule::exists('roles', 'id')],
+            'schemes'   => ['nullable', 'array'],
+            'schemes.*' => ['integer', Rule::exists('schemes', 'id')],
         ];
+    }
+
+    private function canAllocateSchemes(Request $request): bool
+    {
+        return $request->user()->can('schemes.allocate') && $request->user()->can('schemes.all');
+    }
+
+    private function allocatableSchemes()
+    {
+        return $this->canAllocateSchemes(request()) ? Scheme::orderBy('name')->get() : collect();
+    }
+
+    /** Scheme access is granted only by all-scheme administrators holding schemes.allocate. */
+    private function syncSchemes(Request $request, User $user, array $ids): void
+    {
+        if (! $this->canAllocateSchemes($request)) {
+            return;
+        }
+
+        $before = $user->schemes()->orderBy('name')->pluck('name')->all();
+        $user->schemes()->sync($ids);
+        $after = $user->schemes()->orderBy('name')->pluck('name')->all();
+
+        if ($before !== $after) {
+            Audit::log('user.schemes_changed', $user, 'Scheme access changed', ['schemes' => $before], ['schemes' => $after]);
+        }
     }
 
     /** Only Super Admins may hand out the Super Admin role (prevents privilege escalation). */

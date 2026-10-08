@@ -33,6 +33,10 @@
             <div><dt class="text-slate-500">Password</dt><dd class="mt-0.5 font-medium text-slate-900">
                 @if ($user->must_change_password)<x-badge color="amber">Temporary: change pending</x-badge>
                 @else Changed {{ $user->password_changed_at?->diffForHumans() ?? 'never' }}@endif</dd></div>
+            <div><dt class="text-slate-500">Employee schemes</dt><dd class="mt-0.5 font-medium text-slate-900">
+                @if ($user->can('schemes.all'))<x-badge color="brand">All schemes</x-badge>
+                @elseif ($user->schemes->isEmpty())<span class="text-amber-700">None: sees no employees</span>
+                @else{{ $user->schemes->pluck('name')->sort()->implode(', ') }}@endif</dd></div>
             <div><dt class="text-slate-500">Account created</dt><dd class="mt-0.5 font-medium text-slate-900">{{ $user->created_at?->format('d M Y') }}</dd></div>
         </dl>
     </x-card>
