@@ -8,6 +8,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeSyncController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PasswordController;
+use App\Http\Controllers\PayComponentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SchemeController;
@@ -41,6 +42,20 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::delete('{employee}/bank-accounts/{account}', [EmployeeBankAccountController::class, 'destroy'])->middleware('can:bank-accounts.remove')->name('employees.bank-accounts.destroy');
         Route::get('{employee}/bank-accounts/{account}/reveal', [EmployeeBankAccountController::class, 'reveal'])->middleware('can:bank-accounts.reveal')->name('employees.bank-accounts.reveal');
         Route::patch('{employee}/status', [EmployeeController::class, 'toggle'])->middleware('can:employees.status')->name('employees.status');
+    });
+
+    // Payroll set-up: pay components + formulas
+    Route::prefix('payroll/components')->group(function () {
+        Route::get('/', [PayComponentController::class, 'index'])->middleware('can:pay-components.view')->name('pay-components.index');
+        Route::get('create', [PayComponentController::class, 'create'])->middleware('can:pay-components.manage')->name('pay-components.create');
+        Route::post('/', [PayComponentController::class, 'store'])->middleware('can:pay-components.manage')->name('pay-components.store');
+        Route::post('check-formula', [PayComponentController::class, 'check'])->middleware('can:pay-components.manage')->name('pay-components.check-formula');
+        Route::get('{component}', [PayComponentController::class, 'show'])->middleware('can:pay-components.view')->name('pay-components.show');
+        Route::patch('{component}', [PayComponentController::class, 'update'])->middleware('can:pay-components.manage')->name('pay-components.update');
+        Route::patch('{component}/status', [PayComponentController::class, 'toggle'])->middleware('can:pay-components.manage')->name('pay-components.toggle');
+        Route::get('{component}/versions/create', [PayComponentController::class, 'createVersion'])->middleware('can:pay-components.manage')->name('pay-components.versions.create');
+        Route::post('{component}/versions', [PayComponentController::class, 'storeVersion'])->middleware('can:pay-components.manage')->name('pay-components.versions.store');
+        Route::match(['get', 'post'], '{component}/test', [PayComponentController::class, 'test'])->middleware('can:pay-components.view')->name('pay-components.test');
     });
 
     Route::prefix('admin')->group(function () {

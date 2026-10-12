@@ -30,6 +30,11 @@ return [
         'bank-master.add'    => 'Add banks and branches',
         'bank-master.remove' => 'Remove banks and branches',
     ],
+    'Pay components' => [
+        'pay-components.view'     => 'View pay components and use the test panel',
+        'pay-components.manage'   => 'Create and change pay components (fixed, input and system types)',
+        'pay-components.formulas' => 'Create and change formula and percentage components',
+    ],
     'Schemes' => [
         'schemes.all'      => 'Access ALL schemes (no employee restriction)',
         'schemes.view'     => 'View schemes',

@@ -44,8 +44,7 @@ return [
             ]],
             ['label' => 'Compensation', 'icon' => 'document', 'children' => [
                 ['label' => 'Salary structures', 'url' => '/compensation/structures'],
-                ['label' => 'Allowances',        'url' => '/compensation/allowances'],
-                ['label' => 'Deductions',        'url' => '/compensation/deductions'],
+                ['label' => 'Pay components',    'url' => '/payroll/components', 'can' => 'pay-components.view', 'live' => true],
                 ['label' => 'Loans & advances',  'url' => '/compensation/loans'],
             ]],
             ['label' => 'Payslips', 'icon' => 'document', 'url' => '/payslips'],
