@@ -1,9 +1,10 @@
-{{-- Shared by create (header + first version) and "new version". Vars: $v, $others, optional $payComponent. --}}
+{{-- Shared by create (header + first version) and "new version". Vars: $v, $others, optional $payComponent, $groups (create only). --}}
 @php
     $creating = ! isset($payComponent);
     $flag = fn (string $k) => old('_flags') ? (bool) old($k) : (bool) ($v[$k] ?? false);
     $field = 'block w-full rounded-md border border-slate-300 bg-white py-2 px-3 text-sm focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600';
     $label = 'block text-sm font-medium text-slate-700';
+    $groupMap = ($groups ?? collect())->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'type' => $g->type, 'combine' => (bool) $g->combine_on_payslip])->values();
 @endphp
 
 <form method="POST" action="{{ $creating ? route('pay-components.store') : route('pay-components.versions.store', $payComponent) }}" class="grid gap-6 lg:grid-cols-3"
@@ -13,6 +14,9 @@
         rate: @js(old('percentage_rate', $v['percentage_rate'])),
         of: @js(old('percentage_of', $v['percentage_of'] ?? [])),
         code: @js($creating ? old('code', '') : $payComponent->code),
+        type: @js(old('type', 'earning')),
+        group: @js((string) old('pay_component_group_id', '')),
+        groups: @js($groupMap),
         check: { state: 'idle', message: '' },
         async runCheck() {
             this.check = { state: 'busy', message: '' };
@@ -42,10 +46,21 @@
                     <x-input name="name" label="Name" :value="old('name')" required placeholder="Shown on the payslip" />
                     <div class="space-y-1.5">
                         <label for="type" class="{{ $label }}">Type</label>
-                        <select id="type" name="type" class="{{ $field }}" required>
+                        <select id="type" name="type" x-model="type" @change="group = ''" class="{{ $field }}" required>
                             @foreach (\App\Models\PayComponent::TYPES as $k => $t)<option value="{{ $k }}" @selected(old('type', 'earning') === $k)>{{ $t }}</option>@endforeach
                         </select>
                         @error('type')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="space-y-1.5">
+                        <label for="pay_component_group_id" class="{{ $label }}">Group</label>
+                        <select id="pay_component_group_id" name="pay_component_group_id" x-model="group" required class="{{ $field }}">
+                            <option value="">Select a group</option>
+                            <template x-for="g in groups.filter(g => g.type === type)" :key="g.id">
+                                <option :value="g.id" :selected="String(g.id) === String(group)" x-text="g.name + (g.combine ? ' (one summed line)' : '')"></option>
+                            </template>
+                        </select>
+                        <p x-show="groups.filter(g => g.type === type).length === 0" x-cloak class="text-sm text-amber-700">No active group of this type. Add one under Payroll &gt; Component groups.</p>
+                        @error('pay_component_group_id')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
                     <x-input name="payslip_order" type="number" label="Payslip order" :value="old('payslip_order', 100)" hint="Lower numbers appear first." />
                     <div class="sm:col-span-2"><x-input name="description" label="Description" :value="old('description')" /></div>
@@ -118,9 +133,9 @@
         </x-card>
 
         <x-card title="Statutory and payment rules">
-            <p class="mb-3 text-sm text-slate-500">Flags tell the payroll engine which base this component belongs to. Rates and tax tables are configured separately.</p>
+            <p class="mb-3 text-sm text-slate-500">Flags tell the payroll engine which base this component belongs to. EPF and MSPS are separate bases: each employee is calculated on the base of their own fund. Rates and tax tables are configured separately.</p>
             <div class="grid gap-3 sm:grid-cols-2">
-                @foreach (['epf_applicable' => 'Counts for EPF', 'etf_applicable' => 'Counts for ETF', 'tax_applicable' => 'Taxable income', 'ot_base' => 'Part of the overtime base'] as $k => $t)
+                @foreach (['epf_applicable' => 'Counts for EPF', 'msps_applicable' => 'Counts for MSPS', 'etf_applicable' => 'Counts for ETF', 'tax_applicable' => 'Taxable income', 'ot_base' => 'Part of the overtime base'] as $k => $t)
                     <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="{{ $k }}" value="1" class="size-4 accent-brand-700" @checked($flag($k))> {{ $t }}</label>
                 @endforeach
             </div>

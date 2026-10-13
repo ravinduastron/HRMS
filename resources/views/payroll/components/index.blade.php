@@ -54,7 +54,7 @@
                 <td class="px-5 py-3 font-mono text-xs font-medium text-slate-900">
                     <a href="{{ route('pay-components.show', $c) }}" class="hover:underline">{{ $c->code }}</a>
                 </td>
-                <td class="px-5 py-3">{{ $c->name }}</td>
+                <td class="px-5 py-3">{{ $c->name }}<p class="text-xs text-slate-500">{{ $c->group?->name ?? 'No group' }}</p></td>
                 <td class="px-5 py-3">
                     <x-badge :color="$typeColor[$c->type]">{{ \App\Models\PayComponent::TYPES[$c->type] }}</x-badge>
                 </td>
@@ -76,7 +76,7 @@
                 <td class="px-5 py-3">
                     @if ($v)
                         <div class="flex flex-wrap gap-1">
-                            @foreach (['epf_applicable' => 'EPF', 'etf_applicable' => 'ETF', 'tax_applicable' => 'Tax'] as $k => $t)
+                            @foreach (['epf_applicable' => 'EPF', 'msps_applicable' => 'MSPS', 'etf_applicable' => 'ETF', 'tax_applicable' => 'Tax'] as $k => $t)
                                 @if ($v->$k)
                                     <x-badge color="slate">{{ $t }}</x-badge>
                                 @endif

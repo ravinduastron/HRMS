@@ -19,7 +19,7 @@ Run inline from the shell: `php artisan mihcm:sync-employees`
 * The sync never writes is_active / is_payroll_active.
 * The API is fetched completely first; DB changes are applied in one transaction. A failed or partial fetch changes nothing.
 * Employees no longer returned by the API are marked MiHCM-inactive, unless that would exceed
-  `mihcm.max_missing_percent` (default 20%), in which case nothing is deactivated and the run shows a warning.
+  `mihcm.max_missing_percent` (default 50%), in which case nothing is deactivated and the run shows a warning.
 * NIC values are masked in sync changes and in the audit log (config/mihcm.php hidden_fields, Employee::$auditHidden).
 
 ## Adding bank / salary later

@@ -24,7 +24,7 @@ class PayComponentVersion extends Model
     {
         return [
             'effective_from' => 'date', 'percentage_of' => 'array', 'rounding_dp' => 'integer', 'approved_at' => 'datetime',
-            'epf_applicable' => 'boolean', 'etf_applicable' => 'boolean', 'tax_applicable' => 'boolean', 'ot_base' => 'boolean',
+            'epf_applicable' => 'boolean', 'msps_applicable' => 'boolean', 'etf_applicable' => 'boolean', 'tax_applicable' => 'boolean', 'ot_base' => 'boolean',
         ];
     }
 

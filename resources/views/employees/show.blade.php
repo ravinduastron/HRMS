@@ -4,6 +4,8 @@
 @section('content')
 @php
     $d = fn ($date) => $date && !$date->isSameDay('1901-01-01') ? $date->format('d M Y') : '';
+    $fundLabel = $employee->provident_fund === 'msps' ? 'MSPS' : 'EPF';
+    $otherFund = $employee->provident_fund === 'msps' ? 'epf' : 'msps';
     // Add future modules here: set 'ready' => true once the tab partial exists (e.g. employees/tabs/_bank.blade.php).
     $tabs = [
         'profile'    => ['label' => 'Profile', 'ready' => true],
@@ -23,7 +25,7 @@
         'Mobile' => $employee->mobile, 'Email' => $employee->email, 'Permanent address' => $employee->full_address,
     ];
     $employment = [
-        'Employee no' => $employee->employee_no, 'EPF no' => $employee->msps_no, 'Employment type' => $employee->emp_type,
+        'Employee no' => $employee->employee_no, 'Provident fund' => $fundLabel, 'EPF / MSPS no' => $employee->fund_no, 'Employment type' => $employee->emp_type,
         'Job category' => $employee->ct_name, 'Designation' => $employee->dsg_name, 'Grade' => $employee->grade_name, 'Scheme' => $employee->scheme_name,
         'Department' => $employee->department, 'Section' => $employee->mihcm_section, 'Team' => $employee->team,
         'Date joined' => $d($employee->date_joined), 'Contract expiry' => $d($employee->contract_expiry_date),
@@ -44,6 +46,14 @@
                 </x-confirm-action>
             @endforeach
         @endcan
+
+        @can('employees.fund')
+            <x-confirm-action :action="route('employees.fund', $employee)" method="PATCH" :title="'Switch to '.strtoupper($otherFund).'?'" :confirm="'Switch to '.strtoupper($otherFund)" variant="primary">
+                <x-slot:trigger><x-button variant="secondary">Switch to {{ strtoupper($otherFund) }}</x-button></x-slot:trigger>
+                <input type="hidden" name="fund" value="{{ $otherFund }}">
+                This employee is currently an {{ $fundLabel }} member. Payroll will use the {{ strtoupper($otherFund) }} base from the next calculation. MiHCM does not provide the fund type, so the sync will not change it.
+            </x-confirm-action>
+        @endcan
     </x-slot:actions>
 </x-page-header>
 
@@ -51,6 +61,7 @@
     <x-badge :color="$employee->is_active ? 'green' : 'slate'">{{ $employee->is_active ? 'Active here' : 'Inactive here' }}</x-badge>
     <x-badge :color="$employee->is_payroll_active ? 'brand' : 'amber'">{{ $employee->is_payroll_active ? 'In payroll' : 'Excluded from payroll' }}</x-badge>
     <x-badge :color="['Active' => 'green', 'Inactive' => 'amber', 'Removed' => 'red'][$employee->mihcm_status]">MiHCM: {{ $employee->mihcm_status }}</x-badge>
+    <x-badge color="slate">Fund: {{ $fundLabel }}</x-badge>
     <span class="self-center text-xs text-slate-500">Last synced {{ $employee->last_synced_at?->diffForHumans() ?? 'never' }}</span>
 </div>
 

@@ -5,10 +5,12 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BankMasterController;
 use App\Http\Controllers\EmployeeBankAccountController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeFundController;
 use App\Http\Controllers\EmployeeSyncController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PayComponentController;
+use App\Http\Controllers\PayComponentGroupController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SchemeController;
@@ -42,6 +44,7 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::delete('{employee}/bank-accounts/{account}', [EmployeeBankAccountController::class, 'destroy'])->middleware('can:bank-accounts.remove')->name('employees.bank-accounts.destroy');
         Route::get('{employee}/bank-accounts/{account}/reveal', [EmployeeBankAccountController::class, 'reveal'])->middleware('can:bank-accounts.reveal')->name('employees.bank-accounts.reveal');
         Route::patch('{employee}/status', [EmployeeController::class, 'toggle'])->middleware('can:employees.status')->name('employees.status');
+        Route::patch('{employee}/fund', [EmployeeFundController::class, 'update'])->middleware('can:employees.fund')->name('employees.fund');
     });
 
     // Payroll set-up: pay components + formulas
@@ -56,6 +59,15 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::get('{component}/versions/create', [PayComponentController::class, 'createVersion'])->middleware('can:pay-components.manage')->name('pay-components.versions.create');
         Route::post('{component}/versions', [PayComponentController::class, 'storeVersion'])->middleware('can:pay-components.manage')->name('pay-components.versions.store');
         Route::match(['get', 'post'], '{component}/test', [PayComponentController::class, 'test'])->middleware('can:pay-components.view')->name('pay-components.test');
+    });
+
+    // Pay component groups (payslip grouping)
+    Route::prefix('payroll/groups')->group(function () {
+        Route::get('/', [PayComponentGroupController::class, 'index'])->middleware('can:pay-component-groups.view')->name('pay-component-groups.index');
+        Route::post('/', [PayComponentGroupController::class, 'store'])->middleware('can:pay-component-groups.manage')->name('pay-component-groups.store');
+        Route::get('{group}/edit', [PayComponentGroupController::class, 'edit'])->middleware('can:pay-component-groups.manage')->name('pay-component-groups.edit');
+        Route::put('{group}', [PayComponentGroupController::class, 'update'])->middleware('can:pay-component-groups.manage')->name('pay-component-groups.update');
+        Route::patch('{group}/status', [PayComponentGroupController::class, 'toggle'])->middleware('can:pay-component-groups.manage')->name('pay-component-groups.toggle');
     });
 
     Route::prefix('admin')->group(function () {

@@ -7,7 +7,7 @@ $cur = $payComponent->current();
 $latest = $payComponent->latestVersion();
 $yes = fn ($b) => $b ? 'Yes' : 'No';
 @endphp
-<x-page-header :title="$payComponent->name" :description="$payComponent->code.' · '.\App\Models\PayComponent::TYPES[$payComponent->type]">
+<x-page-header :title="$payComponent->name" :description="$payComponent->code.' · '.\App\Models\PayComponent::TYPES[$payComponent->type].' · '.($payComponent->group?->name ?? 'No group')">
     <x-slot:actions>
         <x-button :href="route('pay-components.test', $payComponent)" variant="secondary">Test panel</x-button>
         @can('pay-components.manage')
@@ -58,12 +58,17 @@ $yes = fn ($b) => $b ? 'Yes' : 'No';
                 </dd>
             </div>
             <div>
-                <dt class="text-slate-500">EPF / ETF / Tax</dt>
-                <dd class="mt-0.5 font-medium text-slate-900">{{ $yes($cur->epf_applicable) }} / {{ $yes($cur->etf_applicable) }} / {{ $yes($cur->tax_applicable) }}</dd>
+                <dt class="text-slate-500">EPF / MSPS / ETF / Tax</dt>
+                <dd class="mt-0.5 font-medium text-slate-900">{{ $yes($cur->epf_applicable) }} / {{ $yes($cur->msps_applicable) }} / {{ $yes($cur->etf_applicable) }} / {{ $yes($cur->tax_applicable) }}</dd>
             </div>
             <div>
                 <dt class="text-slate-500">Proration</dt>
                 <dd class="mt-0.5 font-medium text-slate-900">{{ str_replace('_', ' ', ucfirst($cur->proration)) }}</dd>
+            </div>
+            <div>
+                <dt class="text-slate-500">Payslip group</dt>
+                <dd class="mt-0.5 font-medium text-slate-900">{{ $payComponent->group?->name ?? '—' }}
+                    @if ($payComponent->group?->combine_on_payslip)<span class="block text-xs font-normal text-slate-500">Shown as one summed line</span>@endif</dd>
             </div>
         </dl>
         @else
@@ -83,6 +88,17 @@ $yes = fn ($b) => $b ? 'Yes' : 'No';
             @csrf @method('PATCH')
             <x-input name="name" label="Name" :value="old('name', $payComponent->name)" required />
             <x-input name="payslip_order" type="number" label="Payslip order" :value="old('payslip_order', $payComponent->payslip_order)" required />
+            <div class="space-y-1.5">
+                <label for="pay_component_group_id" class="block text-sm font-medium text-slate-700">Group</label>
+                <select id="pay_component_group_id" name="pay_component_group_id" required
+                    class="block w-full rounded-md border border-slate-300 bg-white py-2 px-3 text-sm focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600">
+                    @foreach ($groups as $g)
+                        <option value="{{ $g->id }}" @selected((int) old('pay_component_group_id', $payComponent->pay_component_group_id) === $g->id)>{{ $g->name }}{{ $g->is_active ? '' : ' (inactive)' }}</option>
+                    @endforeach
+                </select>
+                <p class="text-sm text-slate-500">Only affects how payslips are laid out from now on. Past payslips are not changed.</p>
+                @error('pay_component_group_id')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
             <div class="sm:col-span-2"><x-input name="description" label="Description" :value="old('description', $payComponent->description)" /></div>
             <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="show_on_payslip" value="1" class="size-4 accent-brand-700" @checked($payComponent->show_on_payslip)> Show on the payslip</label>
             <div class="flex justify-end"><x-button type="submit">Save details</x-button></div>

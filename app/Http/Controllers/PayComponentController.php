@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PayComponent;
+use App\Models\PayComponentGroup;
 use App\Models\PayComponentVersion;
 use App\Payroll\ComponentCalculator;
 use App\Payroll\Decimal;
@@ -27,7 +28,7 @@ class PayComponentController extends Controller
 
     public function index(Request $request): View
     {
-        $components = PayComponent::with('versions')
+        $components = PayComponent::with(['versions', 'group'])
             ->when($request->query('type'), fn ($q, $t) => $q->where('type', $t))
             ->when($request->query('status') === 'active', fn ($q) => $q->where('is_active', true))
             ->when($request->query('status') === 'inactive', fn ($q) => $q->where('is_active', false))
@@ -40,6 +41,7 @@ class PayComponentController extends Controller
     {
         return view('payroll.components.create', [
             'v' => $this->defaults(), 'others' => PayComponent::where('is_active', true)->orderBy('code')->get(),
+            'groups' => PayComponentGroup::where('is_active', true)->orderBy('payslip_order')->orderBy('name')->get(),
         ]);
     }
 
@@ -50,6 +52,7 @@ class PayComponentController extends Controller
 
         $component = $this->service->create([
             'code' => strtoupper($data['code']), 'name' => trim($data['name']), 'type' => $data['type'],
+            'pay_component_group_id' => $data['pay_component_group_id'],
             'description' => $data['description'] ?? null,
             'show_on_payslip' => $request->boolean('show_on_payslip'), 'payslip_order' => $data['payslip_order'] ?? 100,
         ], $this->versionData($data, $request), $request->user());
@@ -59,7 +62,13 @@ class PayComponentController extends Controller
 
     public function show(PayComponent $component): View
     {
-        return view('payroll.components.show', ['payComponent' => $component->load('versions')]);
+        return view('payroll.components.show', [
+            'payComponent' => $component->load(['versions', 'group']),
+            // groups of the same type (an inactive group is kept in the list only if this component already uses it)
+            'groups' => PayComponentGroup::where('type', $component->type)
+                ->where(fn ($q) => $q->where('is_active', true)->orWhere('id', $component->pay_component_group_id))
+                ->orderBy('payslip_order')->orderBy('name')->get(),
+        ]);
     }
 
     public function createVersion(PayComponent $component): View
@@ -67,7 +76,7 @@ class PayComponentController extends Controller
         $latest = $component->latestVersion();
         $v = $latest ? array_merge($this->defaults(), $latest->only([
             'calc_method', 'default_amount', 'percentage_rate', 'percentage_of', 'formula', 'rounding_mode', 'rounding_dp',
-            'epf_applicable', 'etf_applicable', 'tax_applicable', 'ot_base', 'proration', 'payment_timing', 'pay_cycle_rule',
+            'epf_applicable', 'msps_applicable', 'etf_applicable', 'tax_applicable', 'ot_base', 'proration', 'payment_timing', 'pay_cycle_rule',
         ])) : $this->defaults();
         $v['effective_from'] = max(today(), $latest?->effective_from->copy()->addDay() ?? today())->toDateString();
         $v['change_note'] = '';
@@ -93,7 +102,10 @@ class PayComponentController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'], 'description' => ['nullable', 'string', 'max:255'],
             'payslip_order' => ['required', 'integer', 'min:0', 'max:65535'],
-        ]);
+            'pay_component_group_id' => ['required', 'integer', Rule::exists('pay_component_groups', 'id')->where(fn ($q) => $q
+                ->where('type', $component->type)
+                ->where(fn ($w) => $w->where('is_active', true)->orWhere('id', $component->pay_component_group_id)))],
+        ], ['pay_component_group_id.exists' => 'Choose an active group of the same type as this component.']);
         $component->update($data + ['show_on_payslip' => $request->boolean('show_on_payslip')]);
 
         return back()->with('status', 'Details updated.');
@@ -206,6 +218,9 @@ class PayComponentController extends Controller
                 }],
             'name' => ['required', 'string', 'max:100'],
             'type' => ['required', Rule::in(array_keys(PayComponent::TYPES))],
+            // required, active, and of the same type as the component
+            'pay_component_group_id' => ['required', 'integer', Rule::exists('pay_component_groups', 'id')->where(fn ($q) => $q
+                ->where('is_active', true)->where('type', request()->input('type')))],
             'description' => ['nullable', 'string', 'max:255'],
             'payslip_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
         ];
@@ -241,7 +256,8 @@ class PayComponentController extends Controller
             'percentage_of' => $m === 'percentage' ? array_values($d['percentage_of'] ?? []) : null,
             'formula' => $m === 'formula' ? trim($d['formula'] ?? '') : null,
             'rounding_mode' => $d['rounding_mode'], 'rounding_dp' => $d['rounding_dp'],
-            'epf_applicable' => $request->boolean('epf_applicable'), 'etf_applicable' => $request->boolean('etf_applicable'),
+            'epf_applicable' => $request->boolean('epf_applicable'), 'msps_applicable' => $request->boolean('msps_applicable'),
+            'etf_applicable' => $request->boolean('etf_applicable'),
             'tax_applicable' => $request->boolean('tax_applicable'), 'ot_base' => $request->boolean('ot_base'),
             'proration' => $d['proration'], 'payment_timing' => $d['payment_timing'], 'pay_cycle_rule' => $d['pay_cycle_rule'],
             'change_note' => $d['change_note'] ?? null,
@@ -253,7 +269,7 @@ class PayComponentController extends Controller
         return [
             'effective_from' => today()->toDateString(), 'calc_method' => 'fixed', 'default_amount' => null, 'percentage_rate' => null,
             'percentage_of' => [], 'formula' => '', 'rounding_mode' => 'half_up', 'rounding_dp' => 2,
-            'epf_applicable' => false, 'etf_applicable' => false, 'tax_applicable' => false, 'ot_base' => false,
+            'epf_applicable' => false, 'msps_applicable' => false, 'etf_applicable' => false, 'tax_applicable' => false, 'ot_base' => false,
             'proration' => 'none', 'payment_timing' => 'regular', 'pay_cycle_rule' => 'every_period', 'change_note' => '',
         ];
     }

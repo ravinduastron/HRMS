@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PayComponent extends Model
@@ -26,6 +27,11 @@ class PayComponent extends Model
     public function auditLabel(): string
     {
         return "{$this->code} {$this->name}";
+    }
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(PayComponentGroup::class, 'pay_component_group_id');
     }
 
     public function versions(): HasMany

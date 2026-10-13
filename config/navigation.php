@@ -45,6 +45,7 @@ return [
             ['label' => 'Compensation', 'icon' => 'document', 'children' => [
                 ['label' => 'Salary structures', 'url' => '/compensation/structures'],
                 ['label' => 'Pay components',    'url' => '/payroll/components', 'can' => 'pay-components.view', 'live' => true],
+                ['label' => 'Component groups',  'url' => '/payroll/groups', 'can' => 'pay-component-groups.view', 'live' => true],
                 ['label' => 'Loans & advances',  'url' => '/compensation/loans'],
             ]],
             ['label' => 'Payslips', 'icon' => 'document', 'url' => '/payslips'],

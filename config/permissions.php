@@ -15,6 +15,7 @@ return [
     'Employees' => [
         'employees.view'     => 'View employees',
         'employees.status'   => 'Activate / deactivate employees',
+        'employees.fund'     => 'Set provident fund type (EPF / MSPS)',
         'employees.sync'     => 'Run MiHCM employee sync',
         'employees.sync-log' => 'View sync history',
     ],
@@ -34,6 +35,10 @@ return [
         'pay-components.view'     => 'View pay components and use the test panel',
         'pay-components.manage'   => 'Create and change pay components (fixed, input and system types)',
         'pay-components.formulas' => 'Create and change formula and percentage components',
+    ],
+    'Pay component groups' => [
+        'pay-component-groups.view'   => 'View pay component groups',
+        'pay-component-groups.manage' => 'Create, change and deactivate pay component groups',
     ],
     'Schemes' => [
         'schemes.all'      => 'Access ALL schemes (no employee restriction)',
