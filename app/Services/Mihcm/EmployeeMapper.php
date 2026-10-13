@@ -55,6 +55,7 @@ class EmployeeMapper
             'scheme_name' => $this->str($e['schemeName'] ?? null, 100),
             // MiHCM sends ONE number (epfNo) for both EPF and MSPS members. The fund TYPE is set locally (employees.provident_fund).
             'fund_no'     => $this->str($e['epfNo'] ?? null, 30),
+            'provident_fund' => in_array($e['schemeName'], array('Casual', 'Contract')) ? 'epf' : 'msps',
 
             'mihcm_department_id' => $this->str($org->get($levels['department'])['levelCode'] ?? null, 50),
             'department'          => $this->str($org->get($levels['department'])['levelName'] ?? null, 150),

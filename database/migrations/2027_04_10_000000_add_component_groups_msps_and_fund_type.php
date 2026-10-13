@@ -63,7 +63,7 @@ return new class extends Migration
             });
         }
         Schema::table('employees', function (Blueprint $table) {
-            $table->string('provident_fund', 10)->default('epf')->after('fund_no'); // epf | msps
+            $table->string('provident_fund', 10)->default('msps')->after('fund_no'); // epf | msps
         });
     }
 
