@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PayComponent;
 use App\Models\PayComponentGroup;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -30,6 +31,19 @@ class PayComponentGroupController extends Controller
         ]);
 
         return redirect()->route('pay-component-groups.index')->with('status', 'Group added.');
+    }
+
+    /** Used by the "Add a new group" popup on the component form (JSON in, JSON out). */
+    public function storeQuick(Request $request): JsonResponse
+    {
+        $data = $request->validate($this->rules());
+
+        $group = PayComponentGroup::create([
+            'name' => trim($data['name']), 'type' => $data['type'], 'description' => null,
+            'payslip_order' => $data['payslip_order'], 'combine_on_payslip' => $request->boolean('combine_on_payslip'), 'is_active' => true,
+        ]);
+
+        return response()->json(['id' => $group->id, 'name' => $group->name, 'type' => $group->type, 'combine' => (bool) $group->combine_on_payslip]);
     }
 
     public function edit(PayComponentGroup $group): View

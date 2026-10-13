@@ -65,6 +65,7 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
     Route::prefix('payroll/groups')->group(function () {
         Route::get('/', [PayComponentGroupController::class, 'index'])->middleware('can:pay-component-groups.view')->name('pay-component-groups.index');
         Route::post('/', [PayComponentGroupController::class, 'store'])->middleware('can:pay-component-groups.manage')->name('pay-component-groups.store');
+        Route::post('quick', [PayComponentGroupController::class, 'storeQuick'])->middleware('can:pay-component-groups.manage')->name('pay-component-groups.quick-store');
         Route::get('{group}/edit', [PayComponentGroupController::class, 'edit'])->middleware('can:pay-component-groups.manage')->name('pay-component-groups.edit');
         Route::put('{group}', [PayComponentGroupController::class, 'update'])->middleware('can:pay-component-groups.manage')->name('pay-component-groups.update');
         Route::patch('{group}/status', [PayComponentGroupController::class, 'toggle'])->middleware('can:pay-component-groups.manage')->name('pay-component-groups.toggle');

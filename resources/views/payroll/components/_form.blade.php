@@ -17,6 +17,33 @@
         type: @js(old('type', 'earning')),
         group: @js((string) old('pay_component_group_id', '')),
         groups: @js($groupMap),
+        typeLabels: @js(\App\Models\PayComponent::TYPES),
+        gm: { open: false, busy: false, name: '', order: 100, combine: false, errors: {} },
+        async saveGroup() {
+            this.gm.busy = true;
+            this.gm.errors = {};
+            try {
+                const r = await fetch(@js(route('pay-component-groups.quick-store')), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
+                    body: JSON.stringify({ name: this.gm.name, type: this.type, payslip_order: this.gm.order, combine_on_payslip: this.gm.combine }),
+                });
+                const j = await r.json().catch(() => ({}));
+                if (r.status === 422) {
+                    this.gm.errors = j.errors ?? {};
+                } else if (!r.ok) {
+                    throw new Error();
+                } else {
+                    this.groups.push({ id: j.id, name: j.name, type: j.type, combine: j.combine });
+                    this.group = String(j.id);
+                    this.gm = { open: false, busy: false, name: '', order: 100, combine: false, errors: {} };
+                    window.toast('Group ' + j.name + ' added and selected.');
+                }
+            } catch (e) {
+                this.gm.errors = { name: ['Could not save the group. Please try again.'] };
+            }
+            this.gm.busy = false;
+        },
         check: { state: 'idle', message: '' },
         async runCheck() {
             this.check = { state: 'busy', message: '' };
@@ -51,16 +78,17 @@
                         </select>
                         @error('type')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
-                    <div class="space-y-1.5">
-                        <label for="pay_component_group_id" class="{{ $label }}">Group</label>
-                        <select id="pay_component_group_id" name="pay_component_group_id" x-model="group" required class="{{ $field }}">
-                            <option value="">Select a group</option>
-                            <template x-for="g in groups.filter(g => g.type === type)" :key="g.id">
-                                <option :value="g.id" :selected="String(g.id) === String(group)" x-text="g.name + (g.combine ? ' (one summed line)' : '')"></option>
-                            </template>
-                        </select>
-                        <p x-show="groups.filter(g => g.type === type).length === 0" x-cloak class="text-sm text-amber-700">No active group of this type. Add one under Payroll &gt; Component groups.</p>
-                        @error('pay_component_group_id')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                    <div>
+                        <x-combobox name="pay_component_group_id" label="Group" x-model="group" placeholder="Select a group"
+                            options-js="groups.filter(g => g.type === type).map(g => ({ value: g.id, label: g.name + (g.combine ? ' (one summed line)' : '') }))" />
+                        <p x-show="groups.filter(g => g.type === type).length === 0" x-cloak class="mt-1.5 text-sm text-amber-700">There is no active group of this type yet.</p>
+                        <p class="mt-1.5 text-sm">
+                            @can('pay-component-groups.manage')
+                                <button type="button" @click="gm.open = true" class="font-medium text-brand-700 hover:underline">+ Add a new group</button>
+                            @else
+                                <span class="text-slate-500">Group missing? Ask an administrator to add it.</span>
+                            @endcan
+                        </p>
                     </div>
                     <x-input name="payslip_order" type="number" label="Payslip order" :value="old('payslip_order', 100)" hint="Lower numbers appear first." />
                     <div class="sm:col-span-2"><x-input name="description" label="Description" :value="old('description')" /></div>
@@ -174,4 +202,36 @@
     </div>
 
     <div class="space-y-6"><x-formula-help :others="$others" /></div>
+    @can('pay-component-groups.manage')
+        {{-- Rendered outside the form (teleport) so its inputs are never submitted with the component. --}}
+        <template x-teleport="body">
+            <div x-show="gm.open" x-cloak @keydown.escape.window="gm.open = false" role="dialog" aria-modal="true" class="fixed inset-0 z-[60] grid place-items-center p-4">
+                <div class="absolute inset-0 bg-slate-900/50" @click="gm.open = false"></div>
+                <div class="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl ring-1 ring-slate-900/10">
+                    <h3 class="text-base font-semibold text-slate-900">New group</h3>
+                    <p class="mt-1 text-sm text-slate-500">Type: <strong class="font-medium text-slate-700" x-text="typeLabels[type]"></strong>. Your component form stays as it is, and the new group is selected for you.</p>
+                    <div class="mt-4 space-y-4">
+                        <div class="space-y-1.5">
+                            <label for="gm_name" class="{{ $label }}">Name</label>
+                            <input id="gm_name" type="text" x-model="gm.name" @keydown.enter.prevent="saveGroup()" autocomplete="off" placeholder="e.g. Overtime" class="{{ $field }}">
+                            <p x-show="gm.errors.name" x-cloak x-text="(gm.errors.name || [])[0]" class="text-sm text-red-600"></p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label for="gm_order" class="{{ $label }}">Payslip order</label>
+                            <input id="gm_order" type="number" min="0" x-model="gm.order" @keydown.enter.prevent="saveGroup()" class="{{ $field }}">
+                            <p x-show="gm.errors.payslip_order" x-cloak x-text="(gm.errors.payslip_order || [])[0]" class="text-sm text-red-600"></p>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" x-model="gm.combine" class="size-4 accent-brand-700"> Show as one line on the payslip (sum, amount only)
+                        </label>
+                        <p x-show="gm.errors.type" x-cloak x-text="(gm.errors.type || [])[0]" class="text-sm text-red-600"></p>
+                    </div>
+                    <div class="mt-5 flex justify-end gap-2">
+                        <x-button variant="secondary" @click="gm.open = false">Cancel</x-button>
+                        <x-button :loading="'gm.busy'" @click="saveGroup()">Add group</x-button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    @endcan
 </form>

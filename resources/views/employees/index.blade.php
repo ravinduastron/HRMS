@@ -6,6 +6,8 @@
     $field = 'block w-full rounded-md border border-slate-300 py-2 px-3 text-sm focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600';
     $tab = fn ($v) => route('employees.index', array_filter(['view' => $v === 'all' ? null : $v, 'period' => $v === 'all' ? null : ($period === 'last' ? null : $period)]));
     $mihcmColor = ['Active' => 'green', 'Inactive' => 'amber', 'Removed' => 'red'];
+    $departmentOptions = $departments->map(fn ($d) => ['value' => $d, 'label' => $d])->values();
+    $schemeOptions = $schemes->map(fn ($s) => ['value' => $s->id, 'label' => $s->name])->values();
 @endphp
 <x-page-header title="Employees" :description="$latestRun ? 'Last MiHCM sync '.$latestRun->finished_at?->diffForHumans().(auth()->user()->can('schemes.all') ? ' · '.$latestRun->fetched_count.' records' : '') : 'No MiHCM sync has completed yet.'">
     <x-slot:actions>
@@ -37,10 +39,8 @@
     <form method="GET" class="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-6">
         <input type="hidden" name="view" value="{{ $view === 'all' ? '' : $view }}"><input type="hidden" name="period" value="{{ $period === 'last' ? '' : $period }}">
         <input type="search" name="q" value="{{ request('q') }}" placeholder="Name, employee no, NIC, email" class="{{ $field }} lg:col-span-2">
-        <select name="department" class="{{ $field }}"><option value="">All departments</option>
-            @foreach ($departments as $d)<option @selected(request('department') === $d)>{{ $d }}</option>@endforeach</select>
-        <select name="scheme" class="{{ $field }}"><option value="">All schemes</option>
-            @foreach ($schemes as $s)<option value="{{ $s->id }}" @selected(request('scheme') == $s->id)>{{ $s->name }}</option>@endforeach</select>
+        <x-combobox name="department" :options="$departmentOptions" :value="request('department')" empty="All departments" />
+        <x-combobox name="scheme" :options="$schemeOptions" :value="request('scheme')" empty="All schemes" />
         <select name="status" class="{{ $field }}"><option value="">Any status</option>
             <option value="active" @selected(request('status') === 'active')>Active</option><option value="inactive" @selected(request('status') === 'inactive')>Inactive</option></select>
         <div class="flex gap-2">

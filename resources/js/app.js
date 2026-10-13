@@ -40,6 +40,83 @@ Alpine.data('userForm', (name = '', username = '') => ({
 }));
 
 /*
+ * Searchable dropdown (see resources/views/components/combobox.blade.php).
+ * items: [{ value, label }]. `value` is the selected value (kept in sync with a parent x-model via x-modelable).
+ * The search box only appears when there are at least `minSearch` options. Dispatches a bubbling "change" event on selection.
+ */
+Alpine.data('combo', (cfg = {}) => ({
+    value: cfg.value ?? '',
+    items: cfg.items ?? [],
+    empty: cfg.empty ?? null,          // label of an "all / none" option (value ''), or null for none
+    placeholder: cfg.placeholder ?? 'Select…',
+    minSearch: cfg.minSearch ?? 8,
+    disabled: false,
+    open: false,
+    q: '',
+    hi: 0,
+
+    get searchable() {
+        return this.items.length >= this.minSearch;
+    },
+
+    get list() {
+        const q = this.q.trim().toLowerCase();
+        const out = this.items.filter((i) => !q || String(i.label).toLowerCase().includes(q));
+        return this.empty !== null && !q ? [{ value: '', label: this.empty }, ...out] : out;
+    },
+
+    get label() {
+        const m = this.items.find((i) => String(i.value) === String(this.value));
+        if (m) return m.label;
+        return this.empty !== null && (this.value === '' || this.value === null) ? this.empty : null;
+    },
+
+    toggle() {
+        this.open ? this.close() : this.show();
+    },
+
+    show() {
+        if (this.disabled) return;
+        this.q = '';
+        this.open = true;
+        this.hi = Math.max(this.list.findIndex((i) => String(i.value) === String(this.value)), 0);
+        this.$nextTick(() => {
+            this.$refs.search?.focus();
+            this.scroll();
+        });
+    },
+
+    close() {
+        this.open = false;
+        this.q = '';
+    },
+
+    pick(item) {
+        const changed = String(item.value) !== String(this.value);
+        this.value = item.value;
+        this.close();
+        this.$refs.btn?.focus();
+        if (changed) this.$nextTick(() => this.$dispatch('change', { value: item.value }));
+    },
+
+    move(step) {
+        const n = this.list.length;
+        if (!n) return;
+        this.hi = (this.hi + step + n) % n;
+        this.$nextTick(() => this.scroll());
+    },
+
+    choose() {
+        const item = this.list[this.hi];
+        if (item) this.pick(item);
+    },
+
+    scroll() {
+        this.$refs.list?.children[this.hi]?.scrollIntoView({ block: 'nearest' });
+    },
+}));
+
+/*
  * Global "busy on submit" behaviour (applies to EVERY form, current and future).
  * When a form is submitted: all buttons on the page are disabled, the clicked button shows a spinner,
  * links are blocked (see app.css), and a second submit is ignored. Reset automatically on back/forward.

@@ -2,6 +2,7 @@
     $max = config('bank.max_accounts_per_employee');
     $canAdd = auth()->user()->can('bank-accounts.add');
     $branchMap = $banks->mapWithKeys(fn ($b) => [$b->id => $b->branches->map(fn ($br) => ['id' => $br->id, 'code' => $br->code, 'name' => $br->name])->values()]);
+    $bankOptions = $banks->map(fn ($b) => ['value' => $b->id, 'label' => $b->name.' ('.$b->code.')'])->values();
     $field = 'block w-full rounded-md border border-slate-300 bg-white py-2 px-3 text-sm focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600';
 @endphp
 <div x-show="tab === 'bank'" x-cloak class="space-y-6">
@@ -85,24 +86,11 @@
         @else
             <x-card title="Add bank account">
                 <form method="POST" action="{{ route('employees.bank-accounts.store', $employee) }}"
-                    x-data="{ bank: @js(old('bank_id', '')), branch: @js(old('bank_branch_id', '')), branches: @js($branchMap) }" class="grid gap-5 sm:grid-cols-2">
+                    x-data="{ bank: @js((string) old('bank_id', '')), branch: @js((string) old('bank_branch_id', '')), branches: @js($branchMap) }" class="grid gap-5 sm:grid-cols-2">
                     @csrf
-                    <div class="space-y-1.5">
-                        <label for="bank_id" class="block text-sm font-medium text-slate-700">Bank</label>
-                        <select id="bank_id" name="bank_id" x-model="bank" @change="branch = ''" required class="{{ $field }}">
-                            <option value="">Select a bank</option>
-                            @foreach ($banks as $b)<option value="{{ $b->id }}">{{ $b->name }} ({{ $b->code }})</option>@endforeach
-                        </select>
-                        @error('bank_id')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
-                    </div>
-                    <div class="space-y-1.5">
-                        <label for="bank_branch_id" class="block text-sm font-medium text-slate-700">Branch</label>
-                        <select id="bank_branch_id" name="bank_branch_id" x-model="branch" :disabled="!bank" required class="{{ $field }} disabled:bg-slate-50">
-                            <option value="">Select a branch</option>
-                            <template x-for="b in (branches[bank] ?? [])" :key="b.id"><option :value="b.id" :selected="String(b.id) === String(branch)" x-text="b.code + ' · ' + b.name"></option></template>
-                        </select>
-                        @error('bank_branch_id')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
-                    </div>
+                    <x-combobox name="bank_id" label="Bank" x-model="bank" @change="branch = ''" :options="$bankOptions" placeholder="Select a bank" />
+                    <x-combobox name="bank_branch_id" label="Branch" x-model="branch" placeholder="Select a branch"
+                        options-js="(branches[bank] ?? []).map(b => ({ value: b.id, label: b.code + ' · ' + b.name }))" disabled-js="!bank" />
                     <x-input name="account_number" label="Account number" autocomplete="off" required />
                     <x-input name="account_number_confirmation" label="Confirm account number" autocomplete="off" required />
                     <div class="sm:col-span-2"><x-input name="account_holder_name" label="Account holder name" :value="old('account_holder_name', $employee->full_name)" required
