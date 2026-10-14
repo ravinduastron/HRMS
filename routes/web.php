@@ -6,6 +6,7 @@ use App\Http\Controllers\BankMasterController;
 use App\Http\Controllers\EmployeeBankAccountController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeFundController;
+use App\Http\Controllers\EmployeeSalaryController;
 use App\Http\Controllers\EmployeeSyncController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PasswordController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\PayComponentController;
 use App\Http\Controllers\PayComponentGroupController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SalaryStructureController;
 use App\Http\Controllers\SchemeController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\EnforceAccountPolicy;
@@ -45,6 +47,13 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::get('{employee}/bank-accounts/{account}/reveal', [EmployeeBankAccountController::class, 'reveal'])->middleware('can:bank-accounts.reveal')->name('employees.bank-accounts.reveal');
         Route::patch('{employee}/status', [EmployeeController::class, 'toggle'])->middleware('can:employees.status')->name('employees.status');
         Route::patch('{employee}/fund', [EmployeeFundController::class, 'update'])->middleware('can:employees.fund')->name('employees.fund');
+
+        // Employee salary (each action adds a new immutable salary version)
+        Route::get('{employee}/salary/reveal', [EmployeeSalaryController::class, 'reveal'])->middleware('can:employee-salary.reveal')->name('employees.salary.reveal');
+        Route::post('{employee}/salary/assign', [EmployeeSalaryController::class, 'assign'])->middleware('can:employee-salary.manage')->name('employees.salary.assign');
+        Route::post('{employee}/salary/components', [EmployeeSalaryController::class, 'addComponent'])->middleware('can:employee-salary.manage')->name('employees.salary.components.store');
+        Route::patch('{employee}/salary/components/{component}', [EmployeeSalaryController::class, 'updateAmount'])->middleware('can:employee-salary.manage')->name('employees.salary.components.amount');
+        Route::delete('{employee}/salary/components/{component}', [EmployeeSalaryController::class, 'removeComponent'])->middleware('can:employee-salary.manage')->name('employees.salary.components.destroy');
     });
 
     // Payroll set-up: pay components + formulas
@@ -59,6 +68,17 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::get('{component}/versions/create', [PayComponentController::class, 'createVersion'])->middleware('can:pay-components.manage')->name('pay-components.versions.create');
         Route::post('{component}/versions', [PayComponentController::class, 'storeVersion'])->middleware('can:pay-components.manage')->name('pay-components.versions.store');
         Route::match(['get', 'post'], '{component}/test', [PayComponentController::class, 'test'])->middleware('can:pay-components.view')->name('pay-components.test');
+    });
+
+    // Salary structures (templates per scheme; the scheme scope limits what each user sees)
+    Route::prefix('compensation/structures')->group(function () {
+        Route::get('/', [SalaryStructureController::class, 'index'])->middleware('can:salary-structures.view')->name('salary-structures.index');
+        Route::get('create', [SalaryStructureController::class, 'create'])->middleware('can:salary-structures.manage')->name('salary-structures.create');
+        Route::post('/', [SalaryStructureController::class, 'store'])->middleware('can:salary-structures.manage')->name('salary-structures.store');
+        Route::get('{structure}', [SalaryStructureController::class, 'show'])->middleware('can:salary-structures.view')->name('salary-structures.show');
+        Route::get('{structure}/edit', [SalaryStructureController::class, 'edit'])->middleware('can:salary-structures.manage')->name('salary-structures.edit');
+        Route::put('{structure}', [SalaryStructureController::class, 'update'])->middleware('can:salary-structures.manage')->name('salary-structures.update');
+        Route::patch('{structure}/status', [SalaryStructureController::class, 'toggle'])->middleware('can:salary-structures.manage')->name('salary-structures.toggle');
     });
 
     // Pay component groups (payslip grouping)

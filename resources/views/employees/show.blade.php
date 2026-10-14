@@ -11,7 +11,7 @@
         'profile'    => ['label' => 'Profile', 'ready' => true],
         'employment' => ['label' => 'Employment', 'ready' => true],
         'bank'       => ['label' => 'Bank accounts', 'ready' => true, 'visible' => auth()->user()->can('bank-accounts.view')],
-        'salary'     => ['label' => 'Salary', 'ready' => false],
+        'salary'     => ['label' => 'Salary', 'ready' => true, 'visible' => auth()->user()->can('employee-salary.view')],
         'history'    => ['label' => 'History', 'ready' => true],
     ];
     $initialTab = array_key_exists(request()->string('tab')->toString(), $tabs) ? request()->string('tab')->toString() : 'profile';
@@ -92,7 +92,7 @@
     @endforeach
 
     @can('bank-accounts.view')@include('employees.tabs._bank')@endcan
-    {{-- Future tabs (salary...): add a partial like employees/tabs/_bank.blade.php wrapped in x-show="tab === 'salary'" --}}
+    @can('employee-salary.view')@include('employees.tabs._salary')@endcan
 
     <div x-show="tab === 'history'" x-cloak class="space-y-6">
         <x-card title="MiHCM sync changes" :padding="false">

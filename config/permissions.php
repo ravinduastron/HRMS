@@ -40,6 +40,15 @@ return [
         'pay-component-groups.view'   => 'View pay component groups',
         'pay-component-groups.manage' => 'Create, change and deactivate pay component groups',
     ],
+    'Salary structures' => [
+        'salary-structures.view'   => 'View salary structures (of your schemes)',
+        'salary-structures.manage' => 'Create and change salary structures (of your schemes)',
+    ],
+    'Employee salary' => [
+        'employee-salary.view'   => 'View employee salary tab (amounts masked)',
+        'employee-salary.reveal' => 'Show salary amounts',
+        'employee-salary.manage' => 'Assign structures and change employee salary components',
+    ],
     'Schemes' => [
         'schemes.all'      => 'Access ALL schemes (no employee restriction)',
         'schemes.view'     => 'View schemes',

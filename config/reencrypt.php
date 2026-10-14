@@ -9,5 +9,6 @@ use App\Services\BankAccountService;
 return [
     'tables' => [
         'employee_bank_accounts' => ['columns' => ['account_number'], 'after' => [BankAccountService::class, 'rehashAll']],
+        'employee_salary_lines'  => ['columns' => ['amount']],
     ],
 ];

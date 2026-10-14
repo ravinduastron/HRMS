@@ -6,7 +6,9 @@ use App\Models\Bank;
 use App\Models\Employee;
 use App\Models\EmployeeSyncChange;
 use App\Models\EmployeeSyncRun;
+use App\Models\SalaryStructure;
 use App\Models\Scheme;
+use App\Services\EmployeeSalaryService;
 use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +16,8 @@ use Illuminate\View\View;
 
 class EmployeeController extends Controller
 {
+    public function __construct(private EmployeeSalaryService $salary) {}
+
     public function index(Request $request): View
     {
         $view = in_array($request->query('view'), ['new', 'deactivated'], true) ? $request->query('view') : 'all';
@@ -64,12 +68,19 @@ class EmployeeController extends Controller
     public function show(Employee $employee): View
     {
         $user = auth()->user();
+        $salary = $user->can('employee-salary.view') ? $this->salary->summary($employee) : null;
+        $canManageSalary = $user->can('employee-salary.manage');
 
         return view('employees.show', [
             'employee' => $employee,
             'bankAccounts' => $user->can('bank-accounts.view') ? $employee->bankAccounts()->with(['bank', 'branch'])->orderByDesc('is_active')->orderBy('id')->get() : collect(),
             'banks' => $user->can('bank-accounts.add') ? Bank::with('branches')->orderBy('name')->get() : collect(),
             'changes'  => $employee->syncChanges()->with('run')->latest('id')->limit(30)->get(),
+            // salary tab (structures are limited to the employee's own scheme)
+            'salary' => $salary,
+            'structures' => $canManageSalary && $employee->scheme_id
+                ? SalaryStructure::where('is_active', true)->where('scheme_id', $employee->scheme_id)->orderBy('name')->get() : collect(),
+            'addable' => $canManageSalary && $salary ? $this->salary->addable($salary['current']) : collect(),
         ]);
     }
 

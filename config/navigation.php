@@ -43,7 +43,7 @@ return [
                 ['label' => 'Bonuses & arrears', 'url' => '/payroll/adjustments'],
             ]],
             ['label' => 'Compensation', 'icon' => 'document', 'children' => [
-                ['label' => 'Salary structures', 'url' => '/compensation/structures'],
+                ['label' => 'Salary structures', 'url' => '/compensation/structures', 'can' => 'salary-structures.view', 'live' => true],
                 ['label' => 'Pay components',    'url' => '/payroll/components', 'can' => 'pay-components.view', 'live' => true],
                 ['label' => 'Component groups',  'url' => '/payroll/groups', 'can' => 'pay-component-groups.view', 'live' => true],
                 ['label' => 'Loans & advances',  'url' => '/compensation/loans'],

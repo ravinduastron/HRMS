@@ -20,3 +20,8 @@
 "+ Add a new group" opens a popup (needs pay-component-groups.manage; others see "ask an administrator").
 It posts to payroll/groups/quick as JSON, adds the group to the dropdown and selects it. The component form is not
 reloaded or cleared. The popup is teleported outside the form, so its fields are never submitted with the component.
+
+## Reserved variable names
+`<x-combobox>` runs in its own Alpine scope that sits inside the form's. A form variable with the same name as one of the
+component's own members is shadowed inside the component and breaks `x-model`. Do not name form variables:
+`value, items, empty, placeholder, minSearch, disabled, open, q, hi, searchable, list, label, toggle, show, close, pick, move, choose, scroll`.

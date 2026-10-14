@@ -60,6 +60,11 @@ class Employee extends Model
         return $this->hasMany(BankAccount::class);
     }
 
+    public function salaryVersions(): HasMany
+    {
+        return $this->hasMany(EmployeeSalaryVersion::class);
+    }
+
     public function activeBankAccount(): HasOne
     {
         return $this->hasOne(BankAccount::class)->payable();
