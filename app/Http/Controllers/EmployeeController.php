@@ -65,10 +65,11 @@ class EmployeeController extends Controller
         ]);
     }
 
-    public function show(Employee $employee): View
+    public function show(Request $request, Employee $employee): View
     {
         $user = auth()->user();
-        $salary = $user->can('employee-salary.view') ? $this->salary->summary($employee) : null;
+        $salaryDate = $this->salary->dateOrToday($request->query('salary_date')); // "view the salary as at this date"
+        $salary = $user->can('employee-salary.view') ? $this->salary->summary($employee, $salaryDate) : null;
         $canManageSalary = $user->can('employee-salary.manage');
 
         return view('employees.show', [
@@ -78,6 +79,7 @@ class EmployeeController extends Controller
             'changes'  => $employee->syncChanges()->with('run')->latest('id')->limit(30)->get(),
             // salary tab (structures are limited to the employee's own scheme)
             'salary' => $salary,
+            'salaryDate' => $salaryDate,
             'structures' => $canManageSalary && $employee->scheme_id
                 ? SalaryStructure::where('is_active', true)->where('scheme_id', $employee->scheme_id)->orderBy('name')->get() : collect(),
             'addable' => $canManageSalary && $salary ? $this->salary->addable($salary['current']) : collect(),

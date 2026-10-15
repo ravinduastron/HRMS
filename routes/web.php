@@ -51,6 +51,7 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         // Employee salary (each action adds a new immutable salary version)
         Route::get('{employee}/salary/reveal', [EmployeeSalaryController::class, 'reveal'])->middleware('can:employee-salary.reveal')->name('employees.salary.reveal');
         Route::post('{employee}/salary/assign', [EmployeeSalaryController::class, 'assign'])->middleware('can:employee-salary.manage')->name('employees.salary.assign');
+        Route::patch('{employee}/salary/amounts', [EmployeeSalaryController::class, 'updateAmounts'])->middleware('can:employee-salary.manage')->name('employees.salary.amounts');
         Route::post('{employee}/salary/components', [EmployeeSalaryController::class, 'addComponent'])->middleware('can:employee-salary.manage')->name('employees.salary.components.store');
         Route::patch('{employee}/salary/components/{component}', [EmployeeSalaryController::class, 'updateAmount'])->middleware('can:employee-salary.manage')->name('employees.salary.components.amount');
         Route::delete('{employee}/salary/components/{component}', [EmployeeSalaryController::class, 'removeComponent'])->middleware('can:employee-salary.manage')->name('employees.salary.components.destroy');

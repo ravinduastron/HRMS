@@ -2,28 +2,47 @@
     $current = $salary['current'] ?? null;
     $next = $salary['next'] ?? null;
     $versions = $salary['versions'] ?? collect();
+    $viewDate = $salaryDate ?? today();
+    $isToday = $viewDate->isToday();
     $canManage = auth()->user()->can('employee-salary.manage');
     $canReveal = auth()->user()->can('employee-salary.reveal');
     $input = 'mt-1.5 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600';
     $typeColor = ['earning' => 'green', 'deduction' => 'red', 'employer_contribution' => 'brand', 'info' => 'slate'];
     $lines = $current ? $current->lines->sortBy(fn ($l) => $l->component?->payslip_order ?? 999)->values() : collect();
     $isFixed = fn ($l) => $l->component?->latestVersion()?->calc_method === 'fixed';
+    $fixedLines = $lines->filter(fn ($l) => $isFixed($l) && $l->component)->values();
     $hasAmounts = $lines->contains(fn ($l) => $isFixed($l) && $l->amount !== null);
     $methodText = ['formula' => 'Calculated', 'percentage' => 'Calculated', 'input' => 'Entered each period', 'system' => 'From another module'];
+    $viewUrl = fn ($date) => route('employees.show', ['employee' => $employee, 'tab' => 'salary', 'salary_date' => $date]);
 @endphp
 <div x-show="tab === 'salary'" x-cloak class="space-y-6">
     @if (! $employee->scheme_id)
         <x-alert type="warning" title="No scheme">This employee has no scheme yet, so a salary structure cannot be assigned. Structures belong to a scheme.</x-alert>
     @endif
+
+    {{-- View the salary as it is (or will be) on a chosen date --}}
+    <form method="GET" action="{{ route('employees.show', $employee) }}" class="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
+        <input type="hidden" name="tab" value="salary">
+        <label class="block text-sm font-medium text-slate-700">View salary as at
+            <input type="date" name="salary_date" value="{{ $viewDate->toDateString() }}" required class="{{ $input }} w-48">
+        </label>
+        <x-button type="submit" variant="secondary">View</x-button>
+        @unless ($isToday)<a href="{{ $viewUrl(null) }}" class="pb-2 text-sm font-medium text-brand-700 hover:underline">Back to today</a>@endunless
+        <p class="pb-2 text-sm text-slate-500">Shows the components in force on that date. Click a row in the history below to jump to its date.</p>
+    </form>
+
+    @unless ($isToday)
+        <x-alert type="info">You are viewing the salary as at {{ $viewDate->format('d M Y') }}, not today's salary. New changes you make default to this date.</x-alert>
+    @endunless
     @if ($next)
-        <x-alert type="info">A salary change takes effect on {{ $next->effective_from->format('d M Y') }}.</x-alert>
+        <x-alert type="info">The next salary change takes effect on {{ $next->effective_from->format('d M Y') }}.</x-alert>
     @endif
 
     <div x-data="{ amounts: null, loading: false, timer: null,
             async reveal() {
                 this.loading = true;
                 try {
-                    const r = await fetch(@js(route('employees.salary.reveal', $employee)), { headers: { Accept: 'application/json' } });
+                    const r = await fetch(@js(route('employees.salary.reveal', [$employee, 'date' => $viewDate->toDateString()])), { headers: { Accept: 'application/json' } });
                     if (!r.ok) throw new Error();
                     const j = await r.json();
                     this.amounts = j.amounts;
@@ -33,12 +52,26 @@
             },
             hide() { this.amounts = null; clearTimeout(this.timer); },
             fmt(v) { const p = String(v).split('.'); return p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + (p[1] || '').padEnd(2, '0'); } }">
-        <x-card title="Current salary" :padding="false">
+        <x-card :title="$isToday ? 'Current salary' : 'Salary as at '.$viewDate->format('d M Y')" :padding="false">
             <x-slot:actions>
                 <div class="flex flex-wrap items-center gap-2">
                     @if ($canReveal && $hasAmounts)
                         <x-button variant="secondary" size="sm" x-show="amounts === null" @click="reveal()" x-bind:disabled="loading">Show amounts</x-button>
                         <x-button variant="secondary" size="sm" x-show="amounts !== null" x-cloak @click="hide()">Hide amounts</x-button>
+                    @endif
+                    @if ($canManage && $current && $fixedLines->isNotEmpty())
+                        <x-confirm-action :action="route('employees.salary.amounts', $employee)" method="PATCH" title="Set amounts" confirm="Save amounts" variant="primary">
+                            <x-slot:trigger><x-button variant="secondary" size="sm">Set amounts</x-button></x-slot:trigger>
+                            <p class="mt-1 text-left text-xs text-slate-500">Enter the monthly amounts you want to set or change. Leave a box empty to keep that amount as it is. All of them are saved as one change.</p>
+                            <div class="mt-3 max-h-64 space-y-3 overflow-y-auto pr-1 text-left">
+                                @foreach ($fixedLines as $l)
+                                    <label class="block text-sm font-medium text-slate-700"><span class="font-mono text-xs">{{ $l->component_code }}</span> <span class="font-normal text-slate-500">{{ $l->component_name }}</span>@if ($l->amount === null) <span class="text-xs text-amber-700">· amount needed</span>@endif
+                                        <input type="text" name="amounts[{{ $l->pay_component_id }}]" inputmode="decimal" autocomplete="off" placeholder="Unchanged" class="{{ $input }} font-mono">
+                                    </label>
+                                @endforeach
+                            </div>
+                            @include('employees.tabs._salary_fields')
+                        </x-confirm-action>
                     @endif
                     @if ($canManage && $current)
                         <x-confirm-action :action="route('employees.salary.components.store', $employee)" title="Add a pay component" confirm="Add component" variant="primary">
@@ -133,7 +166,7 @@
                     @endforeach
                 </x-table>
             @else
-                <p class="px-5 py-6 text-sm text-slate-500">No salary has been set up for this employee yet.@if ($canManage && $structures->isNotEmpty()) Assign a salary structure to start.@endif</p>
+                <p class="px-5 py-6 text-sm text-slate-500">No salary is in force on {{ $viewDate->format('d M Y') }}.@if ($canManage && $structures->isNotEmpty() && ! $versions->count()) Assign a salary structure to start.@endif</p>
             @endif
         </x-card>
     </div>
@@ -148,20 +181,33 @@
                     <th class="px-5 py-3 font-medium">Components</th>
                     <th class="px-5 py-3 font-medium">By</th>
                     <th class="px-5 py-3 font-medium">Reason</th>
+                    <th class="px-5 py-3"></th>
                 </tr>
             </x-slot:head>
             @forelse ($versions as $v)
+                @php
+                    $older = $versions[$loop->index + 1] ?? null;
+                    $now = $v->lines->pluck('component_name', 'pay_component_id');
+                    $before = $older ? $older->lines->pluck('component_name', 'pay_component_id') : collect();
+                    $added = $older ? $now->diffKeys($before)->values() : collect();
+                    $removed = $older ? $before->diffKeys($now)->values() : collect();
+                @endphp
                 <tr>
                     <td class="whitespace-nowrap px-5 py-3 font-medium text-slate-900">{{ $v->effective_from->format('d M Y') }}
-                        @if ($current && $v->id === $current->id)<x-badge color="green" class="ml-1">In force</x-badge>@endif</td>
+                        @if ($current && $v->id === $current->id)<x-badge :color="$isToday ? 'green' : 'brand'" class="ml-1">{{ $isToday ? 'In force' : 'Viewed' }}</x-badge>@endif</td>
                     <td class="px-5 py-3">{{ $v->change_type === 'assigned' ? 'Structure assigned' : 'Changed' }}</td>
                     <td class="px-5 py-3">{{ $v->structure_name ?? '—' }}</td>
-                    <td class="px-5 py-3">{{ $v->lines_count }}</td>
+                    <td class="max-w-sm px-5 py-3 text-xs text-slate-600">
+                        {{ $v->lines->pluck('component_name')->implode(', ') }}
+                        @if ($added->isNotEmpty())<span class="mt-1 block text-emerald-700">Added: {{ $added->implode(', ') }}</span>@endif
+                        @if ($removed->isNotEmpty())<span class="mt-0.5 block text-red-700">Removed: {{ $removed->implode(', ') }}</span>@endif
+                    </td>
                     <td class="px-5 py-3 text-slate-500">{{ $v->created_by_name ?? 'System' }}<span class="block text-xs">{{ $v->created_at->format('d M Y H:i') }}</span></td>
                     <td class="px-5 py-3 text-slate-500">{{ $v->change_note }}</td>
+                    <td class="px-5 py-3 text-right"><a href="{{ $viewUrl($v->effective_from->toDateString()) }}" class="text-xs font-medium text-brand-700 hover:underline">View</a></td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="px-5 py-8 text-center text-slate-500">No salary history yet.</td></tr>
+                <tr><td colspan="7" class="px-5 py-8 text-center text-slate-500">No salary history yet.</td></tr>
             @endforelse
         </x-table>
     </x-card>

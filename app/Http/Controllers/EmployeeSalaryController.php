@@ -62,6 +62,19 @@ class EmployeeSalaryController extends Controller
         });
     }
 
+    /** Several fixed amounts at once, as ONE new salary version (blank = keep the current amount). */
+    public function updateAmounts(Request $request, Employee $employee): RedirectResponse
+    {
+        return $this->run($employee, function () use ($request, $employee) {
+            $data = $request->validate($this->common() + ['amounts' => ['required', 'array'], 'amounts.*' => ['nullable', ...self::AMOUNT]]);
+            $amounts = collect($data['amounts'])->mapWithKeys(fn ($v, $k) => [(int) $k => $v])->all();
+            $date = Carbon::parse($data['effective_from']);
+            $this->salary->setAmounts($employee, $amounts, $date, $data['change_note'], $request->user());
+
+            return $this->done($employee, $date, 'Amounts updated.');
+        });
+    }
+
     public function removeComponent(Request $request, Employee $employee, PayComponent $component): RedirectResponse
     {
         return $this->run($employee, function () use ($request, $employee, $component) {
@@ -74,12 +87,13 @@ class EmployeeSalaryController extends Controller
     }
 
     /** All amounts of the version in force, on demand, always logged (one audit entry per click). */
-    public function reveal(Employee $employee): JsonResponse
+    public function reveal(Request $request, Employee $employee): JsonResponse
     {
-        $version = $this->salary->inForce($employee);
+        $date = $this->salary->dateOrToday($request->query('date'));
+        $version = $this->salary->inForce($employee, $date);
         abort_unless($version, 404);
 
-        Audit::log('employee_salary.revealed', $employee, 'Salary amounts viewed', context: ['version_id' => $version->id]);
+        Audit::log('employee_salary.revealed', $employee, 'Salary amounts viewed (as at '.$date->format('d M Y').')', context: ['version_id' => $version->id, 'as_at' => $date->toDateString()]);
 
         return response()->json([
             'amounts' => $version->lines->filter(fn ($l) => $l->amount !== null)->mapWithKeys(fn ($l) => [$l->id => $l->amount]),
@@ -100,21 +114,21 @@ class EmployeeSalaryController extends Controller
         try {
             return $action();
         } catch (ValidationException $e) {
-            return $this->back($employee)->with('error', (string) collect($e->errors())->flatten()->first());
+            return $this->back($employee, request()->input('view_date'))->with('error', (string) collect($e->errors())->flatten()->first());
         }
     }
 
     private function done(Employee $employee, Carbon $date, string $message): RedirectResponse
     {
-        $redirect = $this->back($employee);
+        $redirect = $this->back($employee, $date->toDateString()); // show the salary as it is on the date just changed
 
         return $this->salary->hasLaterVersion($employee, $date)
             ? $redirect->with('warning', $message.' A later salary change already exists and does not include this change.')
             : $redirect->with('status', $message);
     }
 
-    private function back(Employee $employee): RedirectResponse
+    private function back(Employee $employee, ?string $viewDate = null): RedirectResponse
     {
-        return redirect()->route('employees.show', [$employee, 'tab' => 'salary']);
+        return redirect()->route('employees.show', ['employee' => $employee, 'tab' => 'salary'] + ($viewDate ? ['salary_date' => $viewDate] : []));
     }
 }

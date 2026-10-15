@@ -37,18 +37,43 @@ class EmployeeSalaryService
         $date = ($date ?? today())->copy()->startOfDay();
 
         return EmployeeSalaryVersion::with('lines')->where('employee_id', $employee->id)->where('approval_status', 'approved')
-            ->whereDate('effective_from', '<=', $date->toDateString())->orderByDesc('effective_from')->first();
+            ->whereDate('effective_from', '<=', $date->toDateString())->orderByDesc('effective_from')->orderByDesc('id')->first(); // several changes can share a date: the last saved wins
     }
 
-    /** @return array{current: ?EmployeeSalaryVersion, versions: Collection, next: ?EmployeeSalaryVersion} */
-    public function summary(Employee $employee): array
+    /** A valid Y-m-d date from a query string, otherwise today. */
+    public function dateOrToday(?string $value): Carbon
     {
+        if ($value && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            try {
+                return Carbon::parse($value)->startOfDay();
+            } catch (\Throwable) {
+                // fall through
+            }
+        }
+
+        return today();
+    }
+
+    /**
+     * The salary as it stands on $date (default today), the full history (newest first, component names only, no amounts)
+     * and the next change after $date.
+     *
+     * @return array{current: ?EmployeeSalaryVersion, versions: Collection, next: ?EmployeeSalaryVersion, date: Carbon}
+     */
+    public function summary(Employee $employee, ?Carbon $date = null): array
+    {
+        $date = ($date ?? today())->copy()->startOfDay();
+
         $versions = EmployeeSalaryVersion::where('employee_id', $employee->id)->where('approval_status', 'approved')
-            ->withCount('lines')->orderByDesc('effective_from')->get();
-        $current = $this->inForce($employee);
+            ->with(['lines' => fn ($q) => $q->select('id', 'employee_salary_version_id', 'pay_component_id', 'component_code', 'component_name')])
+            ->orderByDesc('effective_from')->orderByDesc('id')->get();
+        $current = $this->inForce($employee, $date);
         $current?->load('lines.component.versions');
 
-        return ['current' => $current, 'versions' => $versions, 'next' => $versions->first(fn ($v) => $v->effective_from->gt(today()))];
+        return [
+            'current' => $current, 'versions' => $versions, 'date' => $date,
+            'next' => $versions->filter(fn ($v) => $v->effective_from->gt($date))->sortBy('effective_from')->first(),
+        ];
     }
 
     /** Active components (with an approved version) the employee does not have yet, as combobox options. */
@@ -159,6 +184,38 @@ class EmployeeSalaryService
         return $this->store($employee, null, $lines, $date, 'changed', $note, $by, ['amount_changed' => [$component->code]], $this->baseStructure($employee, $date));
     }
 
+    /** Several amounts in ONE new version (blank = unchanged). */
+    public function setAmounts(Employee $employee, array $amounts, Carbon $date, string $note, User $by): EmployeeSalaryVersion
+    {
+        $lines = $this->baseLines($employee, $date);
+        $components = PayComponent::with('versions')->whereIn('id', array_keys($amounts))->get()->keyBy('id');
+        $changed = [];
+
+        foreach ($amounts as $id => $amount) {
+            if ($amount === null || trim((string) $amount) === '') {
+                continue;
+            }
+            $c = $components[$id] ?? null;
+            if (! $c || ! isset($lines[$c->id])) {
+                throw ValidationException::withMessages(['amount' => 'One of the components is not on this employee\'s salary.']);
+            }
+            if (! $this->isFixed($c)) {
+                throw ValidationException::withMessages(['amount' => "{$c->code} is not a fixed amount component."]);
+            }
+            $new = $this->amountFor($c, (string) $amount);
+            if ($lines[$c->id]['amount'] !== $new) {
+                $lines[$c->id]['amount'] = $new;
+                $changed[] = $c->code;
+            }
+        }
+
+        if (! $changed) {
+            throw ValidationException::withMessages(['amount' => 'No amounts were changed.']);
+        }
+
+        return $this->store($employee, null, $lines, $date, 'changed', $note, $by, ['amount_changed' => $changed], $this->baseStructure($employee, $date));
+    }
+
     public function removeComponent(Employee $employee, PayComponent $component, Carbon $date, string $note, User $by): EmployeeSalaryVersion
     {
         $lines = $this->baseLines($employee, $date);
@@ -211,10 +268,6 @@ class EmployeeSalaryService
         return DB::transaction(function () use ($employee, $structure, $lines, $date, $type, $note, $by, $audit, $from) {
             // Serialise changes per employee
             Employee::withoutGlobalScopes()->whereKey($employee->id)->lockForUpdate()->firstOrFail();
-
-            if (EmployeeSalaryVersion::withoutGlobalScopes()->where('employee_id', $employee->id)->whereDate('effective_from', $date->toDateString())->exists()) {
-                throw ValidationException::withMessages(['effective_from' => 'A salary change already starts on '.$date->format('d M Y').'. Choose another date.']);
-            }
 
             $problems = $this->missingDependencies(array_keys($lines));
             if ($problems) {
