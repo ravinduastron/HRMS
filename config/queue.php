@@ -40,7 +40,10 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            // MUST be longer than the longest job timeout (the MiHCM sync and attendance load jobs allow 1800 s).
+            // If it is shorter, the queue hands a still-running job to a second worker, which fails it with
+            // "has been attempted too many times" even though the first run is still working.
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 2100),
             'after_commit' => false,
         ],
 

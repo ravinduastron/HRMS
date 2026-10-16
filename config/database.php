@@ -12,8 +12,8 @@ return [
     |
     | Here you may specify which of the database connections below you wish
     | to use as your default connection for database operations. This is
-    | the connection which will be utilized unless another connection
-    | is explicitly specified when you execute a query / statement.
+    | the connection which will be utilized unless another is explicitly
+    | specified when you execute a query / statement.
     |
     */
 
@@ -74,6 +74,21 @@ return [
             'password' => env('DB_AUDIT_PASSWORD'),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
+            'timezone' => '+05:30',
+        ],
+
+        // Attendance, leave and the load history (see config/attendance.php). Needs INSERT, SELECT, UPDATE, DELETE.
+        'attendance' => [
+            'driver' => 'mysql',
+            'host' => env('DB_ATTENDANCE_HOST', '127.0.0.1'),
+            'port' => env('DB_ATTENDANCE_PORT', '3306'),
+            'database' => env('DB_ATTENDANCE_DATABASE', 'payroll_attendance'),
+            'username' => env('DB_ATTENDANCE_USERNAME'),
+            'password' => env('DB_ATTENDANCE_PASSWORD'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
             'timezone' => '+05:30',
         ],
 

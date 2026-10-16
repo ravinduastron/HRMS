@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttendanceLoadController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BankMasterController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\EmployeeFundController;
 use App\Http\Controllers\EmployeeSalaryController;
 use App\Http\Controllers\EmployeeSyncController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PayComponentController;
 use App\Http\Controllers\PayComponentGroupController;
@@ -69,6 +71,19 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::get('{component}/versions/create', [PayComponentController::class, 'createVersion'])->middleware('can:pay-components.manage')->name('pay-components.versions.create');
         Route::post('{component}/versions', [PayComponentController::class, 'storeVersion'])->middleware('can:pay-components.manage')->name('pay-components.versions.store');
         Route::match(['get', 'post'], '{component}/test', [PayComponentController::class, 'test'])->middleware('can:pay-components.view')->name('pay-components.test');
+    });
+
+    // Attendance & leave loads from MiHCM (manual; all-scheme administrators only, like the employee sync)
+    Route::prefix('attendance/load')->group(function () {
+        Route::get('/', [AttendanceLoadController::class, 'index'])->middleware(['can:attendance.load-log', 'can:schemes.all'])->name('attendance.load.index');
+        Route::post('/', [AttendanceLoadController::class, 'store'])->middleware(['can:attendance.load', 'can:schemes.all'])->name('attendance.load.store');
+        Route::get('{run}', [AttendanceLoadController::class, 'show'])->middleware(['can:attendance.load-log', 'can:schemes.all'])->name('attendance.load.show');
+    });
+
+    // Leave types (paid / no-pay)
+    Route::prefix('leave/types')->group(function () {
+        Route::get('/', [LeaveTypeController::class, 'index'])->middleware('can:leave-types.manage')->name('leave-types.index');
+        Route::patch('{type}', [LeaveTypeController::class, 'update'])->middleware('can:leave-types.manage')->name('leave-types.update');
     });
 
     // Salary structures (templates per scheme; the scheme scope limits what each user sees)

@@ -49,6 +49,11 @@ return [
         'employee-salary.reveal' => 'Show salary amounts',
         'employee-salary.manage' => 'Assign structures and change employee salary components',
     ],
+    'Attendance & leave' => [
+        'attendance.load'     => 'Load attendance and leave from MiHCM',
+        'attendance.load-log' => 'View load history and data-quality reports',
+        'leave-types.manage'  => 'Mark leave types as paid or no-pay',
+    ],
     'Schemes' => [
         'schemes.all'      => 'Access ALL schemes (no employee restriction)',
         'schemes.view'     => 'View schemes',

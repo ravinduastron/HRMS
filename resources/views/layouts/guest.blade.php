@@ -9,7 +9,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="relative min-h-full bg-slate-100 font-sans text-slate-800 antialiased">
-    <div class="absolute inset-x-0 top-0 h-64 bg-brand-950" aria-hidden="true"></div>
+    <!-- <div class="absolute inset-x-0 top-0 h-64 bg-brand-950" aria-hidden="true"></div> -->
     <main class="relative grid min-h-screen place-items-center px-4 py-12">
         <div class="w-full max-w-md">
             @yield('content')
