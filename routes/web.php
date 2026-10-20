@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceLoadController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\EmployeeFundController;
 use App\Http\Controllers\EmployeeSalaryController;
 use App\Http\Controllers\EmployeeSyncController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PayComponentController;
@@ -72,6 +74,10 @@ Route::middleware(['auth', EnforceAccountPolicy::class])->group(function () {
         Route::post('{component}/versions', [PayComponentController::class, 'storeVersion'])->middleware('can:pay-components.manage')->name('pay-components.versions.store');
         Route::match(['get', 'post'], '{component}/test', [PayComponentController::class, 'test'])->middleware('can:pay-components.view')->name('pay-components.test');
     });
+
+    // Attendance and leave, read-only views (scheme restrictions apply automatically)
+    Route::get('attendance/timesheets', [AttendanceController::class, 'index'])->middleware('can:attendance.view')->name('attendance.timesheets');
+    Route::get('leave/requests', [LeaveRequestController::class, 'index'])->middleware('can:leave.view')->name('leave.requests');
 
     // Attendance & leave loads from MiHCM (manual; all-scheme administrators only, like the employee sync)
     Route::prefix('attendance/load')->group(function () {

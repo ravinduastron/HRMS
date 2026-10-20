@@ -309,15 +309,17 @@ class AttendanceLoadService
             LeaveEntry::insert($chunk);
         }
 
-        // Cancelled leave disappears from the feed. Only entries that START in a month we fetched can be judged missing
-        // (how MiHCM lists leave spanning two months is not documented, so those are never flagged).
+        // Cancelled leave disappears from the feed. MiHCM lists a leave in EVERY month it overlaps (a leave from 26 Mar to
+        // 9 Apr appears in both the March and the April feed), so any stored entry that overlaps a fetched month and is
+        // not returned can be judged missing.
         $first = Carbon::create($months[0][0], $months[0][1], 1)->toDateString();
         $lastMonth = end($months);
         $last = Carbon::create($lastMonth[0], $lastMonth[1], 1)->endOfMonth()->toDateString();
-        $absent = LeaveEntry::withoutGlobalScopes()->whereBetween('start_date', [$first, $last])->whereNull('missing_since')->get()
+        $overlapsFetched = fn ($q) => $q->where('start_date', '<=', $last)->where('end_date', '>=', $first);
+        $absent = LeaveEntry::withoutGlobalScopes()->where($overlapsFetched)->whereNull('missing_since')->get()
             ->filter(fn ($r) => ! isset($seen[$r->leave_entry_code]));
         $limit = (float) config('attendance.max_missing_percent');
-        $inRange = LeaveEntry::withoutGlobalScopes()->whereBetween('start_date', [$first, $last])->count();
+        $inRange = LeaveEntry::withoutGlobalScopes()->where($overlapsFetched)->count();
 
         if ($absent->isNotEmpty() && $absent->count() > 5 && ($absent->count() / max($inRange, 1) * 100) > $limit) {
             $notes[] = "{$absent->count()} stored leave entries were missing from the MiHCM response (over the {$limit}% safety limit), so none were flagged. Please check the MiHCM feed.";

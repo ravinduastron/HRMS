@@ -50,6 +50,8 @@ return [
         'employee-salary.manage' => 'Assign structures and change employee salary components',
     ],
     'Attendance & leave' => [
+        'attendance.view'     => 'View attendance (timesheets, employee Attendance tab, payroll preview)',
+        'leave.view'          => 'View leave requests (employee Leave tab)',
         'attendance.load'     => 'Load attendance and leave from MiHCM',
         'attendance.load-log' => 'View load history and data-quality reports',
         'leave-types.manage'  => 'Mark leave types as paid or no-pay',

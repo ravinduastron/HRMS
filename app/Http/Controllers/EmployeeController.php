@@ -2,21 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceRecord;
 use App\Models\Bank;
 use App\Models\Employee;
 use App\Models\EmployeeSyncChange;
 use App\Models\EmployeeSyncRun;
+use App\Models\LeaveEntry;
+use App\Models\LeaveType;
 use App\Models\SalaryStructure;
 use App\Models\Scheme;
+use App\Services\AttendanceSummaryService;
 use App\Services\EmployeeSalaryService;
 use App\Support\Audit;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Throwable;
 
 class EmployeeController extends Controller
 {
-    public function __construct(private EmployeeSalaryService $salary) {}
+    public function __construct(private EmployeeSalaryService $salary, private AttendanceSummaryService $attendanceSummary) {}
 
     public function index(Request $request): View
     {
@@ -72,6 +78,17 @@ class EmployeeController extends Controller
         $salary = $user->can('employee-salary.view') ? $this->salary->summary($employee, $salaryDate) : null;
         $canManageSalary = $user->can('employee-salary.manage');
 
+        // Attendance and leave tabs share one date range (default: this month so far)
+        [$attFrom, $attTo] = $this->attendanceRange($request);
+        $attendance = $user->can('attendance.view') ? [
+            'rows' => AttendanceRecord::where('employee_id', $employee->id)->whereBetween('work_date', [$attFrom->toDateString(), $attTo->toDateString()])->orderBy('work_date')->get(),
+            'summary' => $this->attendanceSummary->forEmployees([$employee->id], $attFrom, $attTo)[$employee->id],
+        ] : null;
+        $leave = $user->can('leave.view') ? [
+            'entries' => LeaveEntry::where('employee_id', $employee->id)->where('start_date', '<=', $attTo->toDateString())->where('end_date', '>=', $attFrom->toDateString())->orderBy('start_date')->get(),
+            'types' => LeaveType::get()->keyBy('code'),
+        ] : null;
+
         return view('employees.show', [
             'employee' => $employee,
             'bankAccounts' => $user->can('bank-accounts.view') ? $employee->bankAccounts()->with(['bank', 'branch'])->orderByDesc('is_active')->orderBy('id')->get() : collect(),
@@ -79,11 +96,37 @@ class EmployeeController extends Controller
             'changes'  => $employee->syncChanges()->with('run')->latest('id')->limit(30)->get(),
             // salary tab (structures are limited to the employee's own scheme)
             'salary' => $salary,
+            'attendance' => $attendance, 'leave' => $leave, 'attFrom' => $attFrom, 'attTo' => $attTo,
             'salaryDate' => $salaryDate,
             'structures' => $canManageSalary && $employee->scheme_id
                 ? SalaryStructure::where('is_active', true)->where('scheme_id', $employee->scheme_id)->orderBy('name')->get() : collect(),
             'addable' => $canManageSalary && $salary ? $this->salary->addable($salary['current']) : collect(),
         ]);
+    }
+
+    /** The range both the Attendance and Leave tabs show (at most 100 days). */
+    private function attendanceRange(Request $request): array
+    {
+        $parse = function (?string $v): ?Carbon {
+            if (! $v || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) {
+                return null;
+            }
+            try {
+                return Carbon::parse($v)->startOfDay();
+            } catch (Throwable) {
+                return null;
+            }
+        };
+        $from = $parse($request->query('att_from')) ?? today()->startOfMonth();
+        $to = $parse($request->query('att_to')) ?? today();
+        if ($to->lt($from)) {
+            [$from, $to] = [$to, $from];
+        }
+        if ((int) $from->diffInDays($to, true) > 99) {
+            $from = $to->copy()->subDays(99);
+        }
+
+        return [$from, $to];
     }
 
     public function toggle(Request $request, Employee $employee): RedirectResponse

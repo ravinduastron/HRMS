@@ -19,6 +19,7 @@ final class SystemVariables
             'OT_HOURS'        => ['Approved normal overtime hours', 'hours', '0'],
             'OT_DOUBLE_HOURS' => ['Approved double-rate overtime hours', 'hours', '0'],
             'OT_TRIPLE_HOURS' => ['Approved triple-rate overtime hours', 'hours', '0'],
+            'WORKED_HOURS'    => ['Hours worked (for hourly pay)', 'hours', '0'],
         ];
     }
 

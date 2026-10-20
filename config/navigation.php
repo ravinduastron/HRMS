@@ -23,13 +23,13 @@ return [
                 ['label' => 'Departments', 'url' => '/employees/departments'],
             ]],
             ['label' => 'Time & Attendance', 'icon' => 'clock', 'children' => [
-                ['label' => 'Timesheets', 'url' => '/attendance/timesheets'],
+                ['label' => 'Timesheets', 'url' => '/attendance/timesheets', 'can' => 'attendance.view', 'live' => true],
                 ['label' => 'Overtime',   'url' => '/attendance/overtime'],
                 ['label' => 'Shifts',     'url' => '/attendance/shifts'],
                 ['label' => 'Load data',  'url' => '/attendance/load', 'can' => 'attendance.load-log', 'all_schemes' => true, 'live' => true],
             ]],
             ['label' => 'Leave', 'icon' => 'calendar', 'children' => [
-                ['label' => 'Requests', 'url' => '/leave/requests'],
+                ['label' => 'Requests', 'url' => '/leave/requests', 'can' => 'leave.view', 'live' => true],
                 ['label' => 'Balances', 'url' => '/leave/balances'],
                 ['label' => 'Holidays', 'url' => '/leave/holidays'],
                 ['label' => 'Leave types', 'url' => '/leave/types', 'can' => 'leave-types.manage', 'live' => true],
