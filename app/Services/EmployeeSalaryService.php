@@ -19,11 +19,14 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * All employee-salary rules live here (a future approval engine hooks into store()).
- * Every change adds a NEW immutable version holding the complete list of the employee's components.
- * Amounts are monthly equivalents and are never written to the audit log.
+ * Every change adds a NEW immutable version holding the complete list of the employee's components and the employee's
+ * pay rules (hours limit, statutory exemption), which are carried forward from the version they build on.
+ * Amounts are never written to the audit log. A fixed amount has a rate basis: monthly, daily or hourly.
  */
 class EmployeeSalaryService
 {
+    public const BASES = ['monthly' => 'Monthly', 'daily' => 'Daily', 'hourly' => 'Hourly'];
+
     public function __construct(private PayComponentService $components, private ComponentCalculator $calculator) {}
 
     /** Only components calculated as "fixed" carry an amount per employee. */
@@ -118,7 +121,7 @@ class EmployeeSalaryService
 
     /* ------------------------------ changes ------------------------------ */
 
-    /** Assign a structure: copies its components (replacing everything the employee had from that date). */
+    /** Assign a structure: copies its components (replacing everything the employee had from that date). Pay rules are kept. */
     public function assign(Employee $employee, SalaryStructure $structure, Carbon $date, string $note, User $by): EmployeeSalaryVersion
     {
         if (! $structure->is_active) {
@@ -144,13 +147,13 @@ class EmployeeSalaryService
                 $default = $l->default_amount ?? $c->latestVersion()->default_amount;
                 $amount = $default !== null ? Decimal::round(Decimal::make((string) $default), 2) : null;
             }
-            $lines[$c->id] = ['amount' => $amount, 'source' => 'structure'];
+            $lines[$c->id] = ['amount' => $amount, 'source' => 'structure', 'basis' => 'monthly']; // change the basis per employee afterwards
         }
 
         return $this->store($employee, $structure, $lines, $date, 'assigned', $note, $by, ['structure' => $structure->name, 'components' => $structure->lines->pluck('component.code')->all()]);
     }
 
-    public function addComponent(Employee $employee, PayComponent $component, ?string $amount, Carbon $date, string $note, User $by): EmployeeSalaryVersion
+    public function addComponent(Employee $employee, PayComponent $component, ?string $amount, ?string $basis, Carbon $date, string $note, User $by): EmployeeSalaryVersion
     {
         $lines = $this->baseLines($employee, $date);
         $component->loadMissing('versions');
@@ -162,12 +165,13 @@ class EmployeeSalaryService
             throw ValidationException::withMessages(['pay_component_id' => "{$component->code} is already on this employee's salary."]);
         }
 
-        $lines[$component->id] = ['amount' => $this->amountFor($component, $amount), 'source' => 'custom'];
+        $lines[$component->id] = ['amount' => $this->amountFor($component, $amount), 'source' => 'custom', 'basis' => $this->basisFor($component, $basis, 'monthly')];
 
-        return $this->store($employee, null, $lines, $date, 'changed', $note, $by, ['added' => [$component->code]], $this->baseStructure($employee, $date));
+        return $this->store($employee, null, $lines, $date, 'changed', $note, $by, ['added' => [$component->code]], $this->baseVersion($employee, $date));
     }
 
-    public function setAmount(Employee $employee, PayComponent $component, ?string $amount, Carbon $date, string $note, User $by): EmployeeSalaryVersion
+    /** Change the amount of a fixed component, and optionally its rate basis (monthly, daily or hourly). */
+    public function setAmount(Employee $employee, PayComponent $component, ?string $amount, ?string $basis, Carbon $date, string $note, User $by): EmployeeSalaryVersion
     {
         $lines = $this->baseLines($employee, $date);
         $component->loadMissing('versions');
@@ -180,11 +184,12 @@ class EmployeeSalaryService
         }
 
         $lines[$component->id]['amount'] = $this->amountFor($component, $amount);
+        $lines[$component->id]['basis'] = $this->basisFor($component, $basis, $lines[$component->id]['basis']);
 
-        return $this->store($employee, null, $lines, $date, 'changed', $note, $by, ['amount_changed' => [$component->code]], $this->baseStructure($employee, $date));
+        return $this->store($employee, null, $lines, $date, 'changed', $note, $by, ['amount_changed' => [$component->code], 'basis' => [$component->code => $lines[$component->id]['basis']]], $this->baseVersion($employee, $date));
     }
 
-    /** Several amounts in ONE new version (blank = unchanged). */
+    /** Several amounts in ONE new version (blank = unchanged). Each line keeps its own rate basis. */
     public function setAmounts(Employee $employee, array $amounts, Carbon $date, string $note, User $by): EmployeeSalaryVersion
     {
         $lines = $this->baseLines($employee, $date);
@@ -213,7 +218,7 @@ class EmployeeSalaryService
             throw ValidationException::withMessages(['amount' => 'No amounts were changed.']);
         }
 
-        return $this->store($employee, null, $lines, $date, 'changed', $note, $by, ['amount_changed' => $changed], $this->baseStructure($employee, $date));
+        return $this->store($employee, null, $lines, $date, 'changed', $note, $by, ['amount_changed' => $changed], $this->baseVersion($employee, $date));
     }
 
     public function removeComponent(Employee $employee, PayComponent $component, Carbon $date, string $note, User $by): EmployeeSalaryVersion
@@ -229,7 +234,35 @@ class EmployeeSalaryService
             throw ValidationException::withMessages(['pay_component_id' => 'An employee needs at least one component. Assign a different structure instead.']);
         }
 
-        return $this->store($employee, null, $lines, $date, 'changed', $note, $by, ['removed' => [$component->code]], $this->baseStructure($employee, $date));
+        return $this->store($employee, null, $lines, $date, 'changed', $note, $by, ['removed' => [$component->code]], $this->baseVersion($employee, $date));
+    }
+
+    /**
+     * Employee pay rules: the most hours paid per month (null = no limit; ALL hours count, overtime included) and whether the
+     * employee is exempt from EPF / MSPS / ETF. A new version with the same components.
+     */
+    public function setRules(Employee $employee, ?string $maxHours, bool $statutoryExempt, Carbon $date, string $note, User $by): EmployeeSalaryVersion
+    {
+        $lines = $this->baseLines($employee, $date);
+        $base = $this->baseVersion($employee, $date);
+
+        $hours = null;
+        if ($maxHours !== null && trim($maxHours) !== '') {
+            $hours = Decimal::round(Decimal::make(trim($maxHours)), 2);
+            if (Decimal::cmp($hours, '0') <= 0 || Decimal::cmp($hours, '744') > 0) {
+                throw ValidationException::withMessages(['max_hours' => 'The hours limit must be more than 0 and at most 744 hours a month. Leave it empty for no limit.']);
+            }
+        }
+
+        $oldHours = $base->max_hours !== null ? Decimal::plain((string) $base->max_hours) : null;
+        $newHours = $hours !== null ? Decimal::plain($hours) : null;
+        if ($oldHours === $newHours && (bool) $base->statutory_exempt === $statutoryExempt) {
+            throw ValidationException::withMessages(['max_hours' => 'Nothing was changed.']);
+        }
+
+        return $this->store($employee, null, $lines, $date, 'changed', $note, $by,
+            ['rules_changed' => ['max_hours' => ['from' => $oldHours, 'to' => $newHours], 'statutory_exempt' => ['from' => (bool) $base->statutory_exempt, 'to' => $statutoryExempt]]],
+            $base, ['max_hours' => $hours, 'statutory_exempt' => $statutoryExempt]);
     }
 
     /* ------------------------------ internals ------------------------------ */
@@ -246,7 +279,23 @@ class EmployeeSalaryService
         return Decimal::round(Decimal::make(trim($amount)), 2);
     }
 
-    /** The employee's lines as they stand on $date: [componentId => ['amount' => ?string, 'source' => string]] */
+    /** Rate basis of a line. Only fixed components have one; the others are always stored as monthly. */
+    private function basisFor(PayComponent $component, ?string $basis, string $fallback): string
+    {
+        if (! $this->isFixed($component)) {
+            return 'monthly';
+        }
+        if ($basis === null || $basis === '') {
+            return $fallback;
+        }
+        if (! array_key_exists($basis, self::BASES)) {
+            throw ValidationException::withMessages(['rate_basis' => 'Choose monthly, daily or hourly.']);
+        }
+
+        return $basis;
+    }
+
+    /** The employee's lines as they stand on $date: [componentId => ['amount' => ?string, 'source' => string, 'basis' => string]] */
     private function baseLines(Employee $employee, Carbon $date): array
     {
         $base = $this->inForce($employee, $date);
@@ -254,18 +303,18 @@ class EmployeeSalaryService
             throw ValidationException::withMessages(['effective_from' => 'This employee has no salary in force on that date. Assign a structure first.']);
         }
 
-        return $base->lines->mapWithKeys(fn ($l) => [$l->pay_component_id => ['amount' => $l->amount, 'source' => $l->source]])->all();
+        return $base->lines->mapWithKeys(fn ($l) => [$l->pay_component_id => ['amount' => $l->amount, 'source' => $l->source, 'basis' => $l->rate_basis ?: 'monthly']])->all();
     }
 
-    /** Custom changes keep pointing at the structure the employee started from. */
-    private function baseStructure(Employee $employee, Carbon $date): ?EmployeeSalaryVersion
+    /** The version a change builds on (the one in force on that date). */
+    private function baseVersion(Employee $employee, Carbon $date): ?EmployeeSalaryVersion
     {
         return $this->inForce($employee, $date);
     }
 
-    private function store(Employee $employee, ?SalaryStructure $structure, array $lines, Carbon $date, string $type, string $note, User $by, array $audit, ?EmployeeSalaryVersion $from = null): EmployeeSalaryVersion
+    private function store(Employee $employee, ?SalaryStructure $structure, array $lines, Carbon $date, string $type, string $note, User $by, array $audit, ?EmployeeSalaryVersion $from = null, ?array $rules = null): EmployeeSalaryVersion
     {
-        return DB::transaction(function () use ($employee, $structure, $lines, $date, $type, $note, $by, $audit, $from) {
+        return DB::transaction(function () use ($employee, $structure, $lines, $date, $type, $note, $by, $audit, $from, $rules) {
             // Serialise changes per employee
             Employee::withoutGlobalScopes()->whereKey($employee->id)->lockForUpdate()->firstOrFail();
 
@@ -274,12 +323,17 @@ class EmployeeSalaryService
                 throw ValidationException::withMessages(['pay_component_id' => 'Not saved. '.implode(' ', $problems).' Add the missing component(s), or remove the one that uses them.']);
             }
 
+            // Pay rules (hours limit, statutory exemption) are carried forward from the version this change builds on.
+            $base = $from ?? $this->inForce($employee, $date);
+            $rules ??= ['max_hours' => $base?->max_hours, 'statutory_exempt' => (bool) ($base?->statutory_exempt)];
+
             $version = new EmployeeSalaryVersion;
             $version->forceFill([
                 'employee_id' => $employee->id, 'effective_from' => $date->toDateString(),
                 'salary_structure_id' => $structure?->id ?? $from?->salary_structure_id,
                 'structure_name' => $structure?->name ?? $from?->structure_name,
                 'change_type' => $type, 'change_note' => mb_substr(trim($note), 0, 500),
+                'max_hours' => $rules['max_hours'], 'statutory_exempt' => $rules['statutory_exempt'],
                 'approval_status' => 'approved', 'approved_by' => $by->id, 'approved_at' => now(), // approval engine hooks in here later
                 'created_by' => $by->id, 'created_by_name' => $by->name,
             ])->save();
@@ -290,11 +344,11 @@ class EmployeeSalaryService
                 (new EmployeeSalaryLine)->forceFill([
                     'employee_salary_version_id' => $version->id, 'pay_component_id' => $c->id,
                     'component_code' => $c->code, 'component_name' => $c->name,
-                    'amount' => $l['amount'], 'source' => $l['source'],
+                    'amount' => $l['amount'], 'rate_basis' => $l['basis'] ?? 'monthly', 'source' => $l['source'],
                 ])->save();
             }
 
-            // No amounts in the audit trail: only which components changed.
+            // No amounts in the audit trail: only which components changed (and the pay rules, which are not amounts).
             Audit::log('employee_salary.'.$type, $employee, 'Salary '.$type.' effective '.$date->format('d M Y'),
                 context: $audit + ['version_id' => $version->id, 'effective_from' => $date->toDateString(), 'reason' => $version->change_note]);
 

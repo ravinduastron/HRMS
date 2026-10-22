@@ -18,6 +18,7 @@ use Illuminate\Validation\ValidationException;
 class EmployeeSalaryController extends Controller
 {
     private const AMOUNT = ['regex:/^\d{1,12}(\.\d{1,2})?$/'];
+    private const BASIS = ['nullable', 'in:monthly,daily,hourly'];
 
     public function __construct(private EmployeeSalaryService $salary) {}
 
@@ -42,10 +43,11 @@ class EmployeeSalaryController extends Controller
             $data = $request->validate($this->common() + [
                 'pay_component_id' => ['required', 'integer', 'exists:pay_components,id'],
                 'amount' => ['nullable', ...self::AMOUNT],
+                'rate_basis' => self::BASIS,
             ]);
             $component = PayComponent::findOrFail($data['pay_component_id']);
             $date = Carbon::parse($data['effective_from']);
-            $this->salary->addComponent($employee, $component, $data['amount'] ?? null, $date, $data['change_note'], $request->user());
+            $this->salary->addComponent($employee, $component, $data['amount'] ?? null, $data['rate_basis'] ?? null, $date, $data['change_note'], $request->user());
 
             return $this->done($employee, $date, "{$component->code} added.");
         });
@@ -54,9 +56,9 @@ class EmployeeSalaryController extends Controller
     public function updateAmount(Request $request, Employee $employee, PayComponent $component): RedirectResponse
     {
         return $this->run($employee, function () use ($request, $employee, $component) {
-            $data = $request->validate($this->common() + ['amount' => ['required', ...self::AMOUNT]]);
+            $data = $request->validate($this->common() + ['amount' => ['required', ...self::AMOUNT], 'rate_basis' => self::BASIS]);
             $date = Carbon::parse($data['effective_from']);
-            $this->salary->setAmount($employee, $component, $data['amount'], $date, $data['change_note'], $request->user());
+            $this->salary->setAmount($employee, $component, $data['amount'], $data['rate_basis'] ?? null, $date, $data['change_note'], $request->user());
 
             return $this->done($employee, $date, "Amount for {$component->code} changed.");
         });
@@ -72,6 +74,21 @@ class EmployeeSalaryController extends Controller
             $this->salary->setAmounts($employee, $amounts, $date, $data['change_note'], $request->user());
 
             return $this->done($employee, $date, 'Amounts updated.');
+        });
+    }
+
+    /** Hours limit and statutory exemption, as a new salary version. */
+    public function updateRules(Request $request, Employee $employee): RedirectResponse
+    {
+        return $this->run($employee, function () use ($request, $employee) {
+            $data = $request->validate($this->common() + [
+                'max_hours' => ['nullable', 'regex:/^\d{1,3}(\.\d{1,2})?$/'],
+                'statutory_exempt' => ['nullable', 'in:0,1'],
+            ], ['max_hours.regex' => 'Enter the hours limit as a number, for example 100 or 87.5. Leave it empty for no limit.']);
+            $date = Carbon::parse($data['effective_from']);
+            $this->salary->setRules($employee, $data['max_hours'] ?? null, ($data['statutory_exempt'] ?? '0') === '1', $date, $data['change_note'], $request->user());
+
+            return $this->done($employee, $date, 'Pay rules updated.');
         });
     }
 
@@ -101,7 +118,7 @@ class EmployeeSalaryController extends Controller
         ])->header('Cache-Control', 'no-store');
     }
 
-    /* ------------------------------------------------------------------ */
+    /* ------------------------------ internals ------------------------------ */
 
     private function common(): array
     {

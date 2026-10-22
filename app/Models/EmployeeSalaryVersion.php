@@ -8,14 +8,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use LogicException;
 
-/** Immutable once created (only the approval fields may change later). Audited through EmployeeSalaryService (no amounts are logged). */
+/**
+ * Immutable once created (only the approval fields may change later). Audited through EmployeeSalaryService (no amounts are logged).
+ * Besides the lines it holds the employee's pay rules: max_hours (most hours paid per month, null = no limit) and
+ * statutory_exempt (no EPF / MSPS / ETF).
+ */
 class EmployeeSalaryVersion extends Model
 {
     protected $guarded = [];
 
     protected function casts(): array
     {
-        return ['effective_from' => 'date', 'approved_at' => 'datetime'];
+        return ['effective_from' => 'date', 'approved_at' => 'datetime', 'max_hours' => 'decimal:2', 'statutory_exempt' => 'boolean'];
     }
 
     protected static function booted(): void

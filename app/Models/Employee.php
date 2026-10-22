@@ -26,6 +26,21 @@ class Employee extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new SchemeScope);
+
+        // Provident fund follows the scheme's default when an employee is created or moves to another scheme,
+        // unless the fund was set by hand (provident_fund_override). Changes to a scheme's default are applied by ProvidentFundService.
+        static::saving(function (self $e) {
+            if ($e->provident_fund_override || ! $e->scheme_id) {
+                return;
+            }
+            if ($e->exists && ! $e->isDirty('scheme_id')) {
+                return;
+            }
+            $fund = Scheme::whereKey($e->scheme_id)->value('default_fund');
+            if ($fund) {
+                $e->provident_fund = $fund;
+            }
+        });
     }
 
     public function scheme(): BelongsTo
@@ -39,7 +54,7 @@ class Employee extends Model
             'birthday' => 'date', 'date_joined' => 'date', 'contract_expiry_date' => 'date',
             'resigned_date' => 'date', 'resignation_effect_date' => 'date', 'last_working_date' => 'date',
             'mihcm_active' => 'boolean', 'mihcm_deleted' => 'boolean',
-            'is_active' => 'boolean', 'is_payroll_active' => 'boolean',
+            'is_active' => 'boolean', 'is_payroll_active' => 'boolean', 'provident_fund_override' => 'boolean',
             'mihcm_org_structure' => 'array',
             'first_synced_at' => 'datetime', 'last_synced_at' => 'datetime',
         ];

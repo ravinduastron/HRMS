@@ -47,7 +47,7 @@ return [
     'Employee salary' => [
         'employee-salary.view'   => 'View employee salary tab (amounts masked)',
         'employee-salary.reveal' => 'Show salary amounts',
-        'employee-salary.manage' => 'Assign structures and change employee salary components',
+        'employee-salary.manage' => 'Assign structures, change salary components, rate basis, hours limit and statutory exemption',
     ],
     'Attendance & leave' => [
         'attendance.view'     => 'View attendance (timesheets, employee Attendance tab, payroll preview)',
@@ -57,10 +57,11 @@ return [
         'leave-types.manage'  => 'Mark leave types as paid or no-pay',
     ],
     'Schemes' => [
-        'schemes.all'      => 'Access ALL schemes (no employee restriction)',
-        'schemes.view'     => 'View schemes',
-        'schemes.edit'     => 'Edit schemes',
-        'schemes.allocate' => 'Allocate schemes to users',
+        'schemes.all'          => 'Access ALL schemes (no employee restriction)',
+        'schemes.view'         => 'View schemes (and their pay settings)',
+        'schemes.edit'         => 'Edit schemes',
+        'schemes.allocate'     => 'Allocate schemes to users',
+        'schemes.pay-settings' => 'Edit scheme pay settings (cycles, windows, pay dates, statutory timing, default fund)',
     ],
     'Audit' => [
         'audit.view'   => 'View audit log',

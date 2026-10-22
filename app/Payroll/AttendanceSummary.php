@@ -11,26 +11,30 @@ use DateTimeImmutable;
  * Rules (see docs/ATTENDANCE_VIEWS.md):
  *  - WORKING_DAYS  days MiHCM expects the employee (expected = true)
  *  - PRESENT_DAYS  expected days the employee was present
+ *  - PAID_DAYS     expected days paid: present (less any no-pay leave part) or covered by CONFIRMED paid leave (half-day aware)
  *  - ABSENT_DAYS   expected days not present and not covered by CONFIRMED leave (half days count as 0.5)
  *  - LWP_DAYS      expected days covered by CONFIRMED leave of a type marked no-pay (half-day aware)
  *  - LATE_HOURS    late time, in decimal hours
  *  - OT_*_HOURS    APPROVED overtime only, from days whose approval is done; which approved figure is used is a setting
- *  - WORKED_HOURS  hours worked, in decimal hours (for hourly pay)
+ *  - WORKED_HOURS  hours worked, in decimal hours (all hours, overtime included)
+ *  - PAID_HOURS    WORKED_HOURS limited to the employee's monthly hours limit ($maxHours); no limit = WORKED_HOURS
+ *  - MAX_HOURS     the limit itself (0 = none)
  * Pending leave (P) and leave types not yet reviewed are never deducted: they are reported in 'info' / 'warnings'.
  * Rows MiHCM stopped returning (missing_since) and cancelled leave are excluded and reported.
  */
 final class AttendanceSummary
 {
-    public const VARIABLES = ['WORKING_DAYS', 'PRESENT_DAYS', 'ABSENT_DAYS', 'LWP_DAYS', 'LATE_HOURS', 'OT_HOURS', 'OT_DOUBLE_HOURS', 'OT_TRIPLE_HOURS', 'WORKED_HOURS'];
+    public const VARIABLES = ['WORKING_DAYS', 'PRESENT_DAYS', 'PAID_DAYS', 'ABSENT_DAYS', 'LWP_DAYS', 'LATE_HOURS', 'OT_HOURS', 'OT_DOUBLE_HOURS', 'OT_TRIPLE_HOURS', 'WORKED_HOURS', 'PAID_HOURS', 'MAX_HOURS'];
 
     /**
      * @param  array<int, array>  $days  attendance rows (attendance_records columns)
      * @param  array<int, array>  $leaves  leave rows (leave_entries columns)
      * @param  array<string, ?bool>  $leaveTypes  leave type code => true (no-pay) | false (paid) | null (not reviewed yet)
      * @param  string  $otSource  'decimal' (overtimeApproved) or 'text' (overtimeApprovedString)
+     * @param  ?string  $maxHours  the employee's hours limit for the range, or null for no limit
      * @return array{variables: array<string, string>, info: array<string, mixed>, warnings: string[]}
      */
-    public static function calculate(array $days, array $leaves, array $leaveTypes, string $from, string $to, string $otSource = 'decimal'): array
+    public static function calculate(array $days, array $leaves, array $leaveTypes, string $from, string $to, string $otSource = 'decimal', ?string $maxHours = null): array
     {
         Decimal::ensureAvailable();
         $dates = self::dates($from, $to);
@@ -95,7 +99,7 @@ final class AttendanceSummary
             }
         }
 
-        $working = $present = $absent = $lwp = $unrevDays = 0.0;
+        $working = $present = $absent = $lwp = $unrevDays = $paidDays = 0.0;
         $worked = $late = $ot = $dot = $tot = $unapprovedMin = 0;
         $unapprovedDays = $conflicts = 0;
         $approvedKey = $otSource === 'text' ? 'approved_text_minutes' : 'approved_minutes';
@@ -127,11 +131,13 @@ final class AttendanceSummary
 
             if ((bool) ($row['present'] ?? false)) {
                 $present++;
+                $paidDays += max(0.0, 1.0 - $np); // a present day is paid, less any no-pay leave part of it
                 if ($np + $other >= 1.0) {
                     $conflicts++; // present all day AND on leave all day: MiHCM data disagrees with itself
                 }
             } else {
                 $absent += max(0.0, 1.0 - $np - $other);
+                $paidDays += min(1.0 - $np, $paid[$date] ?? 0); // confirmed PAID leave only (unreviewed types are not counted as paid)
             }
         }
 
@@ -140,11 +146,16 @@ final class AttendanceSummary
             $pendingDays += min(1.0, $f);
         }
 
+        // Hours limit: ALL hours worked count towards it (overtime included); hours above it are not paid.
+        $maxMinutes = $maxHours === null ? null : (int) round((float) Decimal::make($maxHours) * 60);
+        $paidMinutes = $maxMinutes === null ? $worked : min($worked, $maxMinutes);
+
         $info = [
             'days_in_range' => count($dates), 'days_with_data' => count($byDate), 'days_without_data' => count($dates) - count($byDate),
             'pending_leave_days' => self::days($pendingDays), 'pending_leave_entries' => $pendingEntries,
             'unreviewed_leave_days' => self::days($unrevDays),
             'unapproved_ot_hours' => self::hours($unapprovedMin), 'unapproved_ot_days' => $unapprovedDays,
+            'hours_over_limit' => self::hours($worked - $paidMinutes),
             'missing_rows' => $missingRows, 'cancelled_leave_entries' => $cancelled,
             'leave_days_without_data' => $leaveDaysNoData, 'leave_present_conflicts' => $conflicts,
         ];
@@ -162,6 +173,9 @@ final class AttendanceSummary
         if ($unapprovedDays > 0) {
             $warnings[] = "{$info['unapproved_ot_hours']} hour(s) of overtime on {$unapprovedDays} day(s) are not approved and are not counted.";
         }
+        if ($worked > $paidMinutes) {
+            $warnings[] = "{$info['hours_over_limit']} hour(s) worked are above the employee's limit of ".Decimal::plain(Decimal::make((string) $maxHours)).' hour(s) and are not paid.';
+        }
         if ($missingRows > 0) {
             $warnings[] = "{$missingRows} attendance row(s) are no longer returned by MiHCM and are not counted.";
         }
@@ -177,10 +191,12 @@ final class AttendanceSummary
 
         return [
             'variables' => [
-                'WORKING_DAYS' => self::days($working), 'PRESENT_DAYS' => self::days($present), 'ABSENT_DAYS' => self::days($absent),
+                'WORKING_DAYS' => self::days($working), 'PRESENT_DAYS' => self::days($present), 'PAID_DAYS' => self::days($paidDays),
+                'ABSENT_DAYS' => self::days($absent),
                 'LWP_DAYS' => self::days($lwp), 'LATE_HOURS' => self::hours($late),
                 'OT_HOURS' => self::hours($ot), 'OT_DOUBLE_HOURS' => self::hours($dot), 'OT_TRIPLE_HOURS' => self::hours($tot),
-                'WORKED_HOURS' => self::hours($worked),
+                'WORKED_HOURS' => self::hours($worked), 'PAID_HOURS' => self::hours($paidMinutes),
+                'MAX_HOURS' => $maxHours === null ? '0' : Decimal::plain(Decimal::make($maxHours)),
             ],
             'info' => $info,
             'warnings' => $warnings,

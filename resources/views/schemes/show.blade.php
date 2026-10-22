@@ -2,12 +2,18 @@
 @section('title', $scheme->name)
 
 @section('content')
+@php $hasPay = $scheme->paySettings()->exists(); @endphp
 <x-page-header :title="$scheme->name" :description="$scheme->employees_count.' '.Str::plural('employee', $scheme->employees_count)">
     <x-slot:actions>
+        <x-button :href="route('schemes.pay.index', $scheme)" variant="secondary">Pay settings</x-button>
         <x-button :href="route('employees.index', ['scheme' => $scheme->id])" variant="secondary">View employees</x-button>
         <x-button :href="route('schemes.index')" variant="secondary">All schemes</x-button>
     </x-slot:actions>
 </x-page-header>
+
+@unless ($hasPay)
+    <x-alert type="warning" class="mb-4">This scheme has no pay settings yet (pay cycles, windows and pay dates), so it cannot be used in a pay run. <a href="{{ route('schemes.pay.index', $scheme) }}" class="font-medium underline">Set them up</a>.</x-alert>
+@endunless
 
 <div class="space-y-6">
     <x-card title="Details">

@@ -7,6 +7,7 @@ use App\Models\EmployeeSyncChange;
 use App\Models\EmployeeSyncRun;
 use App\Models\Scheme;
 use App\Models\User;
+use App\Services\ProvidentFundService;
 use App\Support\Audit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -49,6 +50,18 @@ class EmployeeSyncService
             } catch (Throwable $e) {
                 report($e);
                 $stats['notes'] .= "\nThe change details could not be saved to the log database: ".Str::limit($e->getMessage(), 300);
+            }
+
+            // Provident fund follows the scheme's default fund (employees set by hand are left alone). A problem here must not
+            // fail a sync whose employee changes have already committed.
+            try {
+                $reset = app(ProvidentFundService::class)->reconcile();
+                if ($reset > 0) {
+                    $stats['notes'] = trim($stats['notes']."\nProvident fund set to the scheme default for {$reset} employee(s).");
+                }
+            } catch (Throwable $e) {
+                report($e);
+                $stats['notes'] = trim($stats['notes']."\nProvident fund could not be checked against the scheme defaults: ".Str::limit($e->getMessage(), 300));
             }
 
             $run->update($stats['counts'] + [
@@ -129,6 +142,7 @@ class EmployeeSyncService
             $employee = $existing->get($k);
 
             if (! $employee) {
+                // Employee::saving sets provident_fund from the scheme's default fund
                 $employee = (new Employee)->forceFill($attrs + ['first_synced_at' => $now, 'last_synced_at' => $now]);
                 $employee->save();
                 $touched[] = $employee->id;
@@ -138,7 +152,7 @@ class EmployeeSyncService
             }
 
             $touched[] = $employee->id;
-            $employee->forceFill($attrs); // never contains is_active / is_payroll_active
+            $employee->forceFill($attrs); // never contains is_active / is_payroll_active / provident_fund
             if (! $employee->isDirty()) {
                 $c['unchanged']++;
                 continue;
@@ -149,13 +163,14 @@ class EmployeeSyncService
             $isGone = ! $employee->mihcm_active || $employee->mihcm_deleted;
             $type = ! $wasGone && $isGone ? 'deactivated' : ($wasGone && ! $isGone ? 'reactivated' : 'updated');
 
-            $employee->save();
+            $employee->save(); // a change of scheme also resets provident_fund to the new scheme's default (unless set by hand)
             $c[$type === 'updated' ? 'updated' : $type]++;
             $record($employee, $type, $diff);
         }
 
         if ($newSchemes) {
-            $notes[] = 'New scheme(s) from MiHCM: '.implode(', ', array_unique($newSchemes)).'. No users are allocated to them yet, so only users with all-scheme access can see these employees.';
+            $notes[] = 'New scheme(s) from MiHCM: '.implode(', ', array_unique($newSchemes)).'. No users are allocated to them yet, so only users with all-scheme access can see these employees.'
+                .' Their default provident fund is MSPS and they have no pay settings yet: set both under Administration > Schemes > Pay settings.';
         }
 
         // Employees the API no longer returns (only trusted after a COMPLETE fetch, and capped by a safety threshold)
