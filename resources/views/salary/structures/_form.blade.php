@@ -12,7 +12,7 @@
         add() {
             if (!this.chosen) return;
             const c = this.info(this.chosen);
-            this.lines.push({ id: c.id, amount: c.fixed && c.default !== null ? c.default : '' });
+            this.lines.push({ id: c.id, amount: c.fixed && c.default !== null ? c.default : '', basis: 'monthly' });
             this.chosen = '';
         },
         remove(i) { this.lines.splice(i, 1); },
@@ -51,7 +51,7 @@
             <div class="overflow-x-auto rounded-md border border-slate-200">
                 <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
                     <thead class="bg-slate-50 text-xs text-slate-500">
-                        <tr><th class="px-4 py-2.5 font-medium">Component</th><th class="px-4 py-2.5 font-medium">Default amount</th><th class="px-4 py-2.5"></th></tr>
+                        <tr><th class="px-4 py-2.5 font-medium">Component</th><th class="px-4 py-2.5 font-medium">Default amount and rate basis</th><th class="px-4 py-2.5"></th></tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         <template x-for="(l, i) in lines" :key="l.id">
@@ -63,8 +63,19 @@
                                     <span x-show="info(l.id).inactive" x-cloak class="text-xs text-amber-700">Inactive: remove it before saving.</span>
                                 </td>
                                 <td class="px-4 py-2.5">
-                                    <input type="number" step="0.01" min="0" :name="'lines[' + i + '][default_amount]'" x-model="l.amount" x-show="info(l.id).fixed"
-                                        placeholder="Set per employee" class="{{ $field }} max-w-48 font-mono">
+                                    <div x-show="info(l.id).fixed" class="flex flex-wrap items-center gap-2">
+                                        <div class="space-y-1.5">
+                                            <input type="number" step="0.01" min="0" :name="'lines[' + i + '][default_amount]'" x-model="l.amount"
+                                                placeholder="Set per employee" class="{{ $field }} max-w-50 font-mono">
+                                        </div>
+                                        <div class="space-y-1.5">
+                                            <select :name="'lines[' + i + '][rate_basis]'" x-model="l.basis" aria-label="Rate basis" class="{{ $field }} w-32">
+                                                <option value="monthly">Monthly</option>
+                                                <option value="daily">Daily</option>
+                                                <option value="hourly">Hourly</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                     <span x-show="!info(l.id).fixed" x-cloak class="text-xs text-slate-500">Calculated or entered each period</span>
                                 </td>
                                 <td class="px-4 py-2.5 text-right"><button type="button" @click="remove(i)" class="text-xs font-medium text-red-600 hover:underline">Remove</button></td>
@@ -74,7 +85,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="text-sm text-slate-500">A default amount applies to fixed-amount components only. It is copied to the employee when the structure is assigned and can then be changed for that employee.</p>
+            <p class="text-sm text-slate-500">A default amount and rate basis apply to fixed-amount components only. The basis says whether the amount is per month, per day or per hour. Both are copied to the employee when the structure is assigned and can then be changed for that employee.</p>
             @foreach ($errors->get('lines') as $m)<p class="text-sm text-red-600">{{ $m }}</p>@endforeach
             @foreach ($errors->get('lines.*') as $messages)@foreach ($messages as $m)<p class="text-sm text-red-600">{{ $m }}</p>@endforeach @endforeach
         </div>

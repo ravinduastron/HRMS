@@ -9,7 +9,7 @@
         </a>
     </div>
 
-    {{-- Right: user display name, notifications, settings --}}
+    {{-- Right: account menu (notifications and settings return when those features exist) --}}
     <div class="flex items-center gap-1">
         <x-dropdown width="w-56" label="Account menu" trigger-class="flex items-center gap-2.5 rounded-md py-1 pl-1 pr-2 hover:bg-slate-100">
             <x-slot:trigger>
@@ -30,25 +30,5 @@
                 </button>
             </form>
         </x-dropdown>
-
-        <x-dropdown width="w-80" label="Notifications" trigger-class="relative rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
-            <x-slot:trigger>
-                <x-icon name="bell" />
-                <span class="absolute right-1.5 top-1.5 size-2 rounded-full bg-accent-500 ring-2 ring-white"></span>
-            </x-slot:trigger>
-            <div class="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
-                <p class="text-sm font-semibold text-slate-900">Notifications</p>
-                <a href="#" class="text-xs font-medium text-brand-700 hover:underline">Mark all as read</a>
-            </div>
-            <ul class="max-h-80 divide-y divide-slate-100 overflow-y-auto">
-                <li class="px-3.5 py-3 text-sm"><p class="font-medium text-slate-900">September pay run needs review</p><p class="text-xs text-slate-500">3 variances above 10% · 20 min ago</p></li>
-                <li class="px-3.5 py-3 text-sm"><p class="font-medium text-slate-900">12 leave requests waiting</p><p class="text-xs text-slate-500">Oldest is 6 days old · 2 hr ago</p></li>
-                <li class="px-3.5 py-3 text-sm"><p class="font-medium text-slate-900">EPF/ETF file for August is ready</p><p class="text-xs text-slate-500">Yesterday</p></li>
-            </ul>
-        </x-dropdown>
-
-        <a href="{{ url('/admin/company') }}" class="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700" aria-label="Settings" title="Settings">
-            <x-icon name="cog" />
-        </a>
     </div>
 </header>

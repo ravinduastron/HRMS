@@ -147,7 +147,7 @@ class EmployeeSalaryService
                 $default = $l->default_amount ?? $c->latestVersion()->default_amount;
                 $amount = $default !== null ? Decimal::round(Decimal::make((string) $default), 2) : null;
             }
-            $lines[$c->id] = ['amount' => $amount, 'source' => 'structure', 'basis' => 'monthly']; // change the basis per employee afterwards
+            $lines[$c->id] = ['amount' => $amount, 'source' => 'structure', 'basis' => $this->isFixed($c) ? ($l->rate_basis ?: 'monthly') : 'monthly']; // change the basis per employee afterwards
         }
 
         return $this->store($employee, $structure, $lines, $date, 'assigned', $note, $by, ['structure' => $structure->name, 'components' => $structure->lines->pluck('component.code')->all()]);

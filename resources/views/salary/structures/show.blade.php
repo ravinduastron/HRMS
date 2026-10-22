@@ -2,6 +2,7 @@
 @section('title', $structure->name)
 
 @section('content')
+@php $basisText = ['monthly' => 'per month', 'daily' => 'per day', 'hourly' => 'per hour']; @endphp
 <x-page-header :title="$structure->name" :description="$structure->scheme->name.' scheme · '.$assigned.' '.Str::plural('employee', $assigned).' started from this structure'">
     <x-slot:actions>
         <x-button :href="route('salary-structures.index')" variant="secondary">All structures</x-button>
@@ -37,7 +38,10 @@
                         @unless ($c->is_active)<x-badge color="amber">Inactive</x-badge>@endunless</td>
                     <td class="px-5 py-3">{{ \App\Models\PayComponent::TYPES[$c->type] }}</td>
                     <td class="px-5 py-3 text-xs text-slate-600">{{ $v ? explode(' ', \App\Models\PayComponentVersion::METHODS[$v->calc_method])[0] : '—' }}</td>
-                    <td class="px-5 py-3 text-right font-mono">{{ $l->default_amount !== null ? number_format($l->default_amount, 2) : '—' }}</td>
+                    <td class="px-5 py-3 text-right">
+                        <span class="font-mono">{{ $l->default_amount !== null ? number_format($l->default_amount, 2) : '—' }}</span>
+                        @if ($l->default_amount !== null)<span class="block text-xs text-slate-500">{{ $basisText[$l->rate_basis ?? 'monthly'] ?? 'per month' }}</span>@endif
+                    </td>
                 </tr>
             @endforeach
         </x-table>

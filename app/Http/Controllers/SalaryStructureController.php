@@ -108,6 +108,7 @@ class SalaryStructureController extends Controller
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.component_id' => ['required', 'integer', 'distinct', Rule::exists('pay_components', 'id')->where('is_active', true)],
             'lines.*.default_amount' => ['nullable', 'regex:/^\d{1,12}(\.\d{1,2})?$/'],
+            'lines.*.rate_basis' => ['nullable', 'in:monthly,daily,hourly'],
         ], [
             'scheme_id.in' => 'You can only use schemes that are allocated to you.',
             'name.unique' => 'This scheme already has a structure with that name.',
@@ -115,6 +116,7 @@ class SalaryStructureController extends Controller
             'lines.min' => 'Add at least one pay component.',
             'lines.*.component_id.exists' => 'A selected component is inactive or does not exist. Remove it from the list.',
             'lines.*.default_amount.regex' => 'Default amounts must be numbers with up to 2 decimals.',
+            'lines.*.rate_basis.in' => 'Choose monthly, daily or hourly as the rate basis.',
         ]);
 
         $data['scheme_id'] = $schemeId;
@@ -136,18 +138,23 @@ class SalaryStructureController extends Controller
             throw ValidationException::withMessages(['lines' => implode(' ', $problems).' Add the missing component(s), or remove the one that uses them.']);
         }
 
-        $before = $structure->lines()->with('component')->get()->mapWithKeys(fn ($l) => [$l->component->code => $l->default_amount])->all();
+        $snapshot = fn () => $structure->lines()->with('component')->get()
+            ->mapWithKeys(fn ($l) => [$l->component->code => ['amount' => $l->default_amount, 'basis' => $l->rate_basis]])->all();
+        $before = $snapshot();
 
         $structure->lines()->delete();
         foreach (array_values($lines) as $i => $l) {
             $c = $components[$l['component_id']];
-            $amount = $this->salary->isFixed($c) && ($l['default_amount'] ?? '') !== '' ? Decimal::round(Decimal::make($l['default_amount']), 2) : null;
-            $structure->lines()->create(['pay_component_id' => $c->id, 'default_amount' => $amount, 'sort' => $i]);
+            $fixed = $this->salary->isFixed($c);
+            $amount = $fixed && ($l['default_amount'] ?? '') !== '' ? Decimal::round(Decimal::make($l['default_amount']), 2) : null;
+            // Only fixed-amount lines have a rate basis; every other line is stored as monthly.
+            $basis = $fixed ? (($l['rate_basis'] ?? '') ?: 'monthly') : 'monthly';
+            $structure->lines()->create(['pay_component_id' => $c->id, 'default_amount' => $amount, 'rate_basis' => $basis, 'sort' => $i]);
         }
 
-        $after = $structure->lines()->with('component')->get()->mapWithKeys(fn ($l) => [$l->component->code => $l->default_amount])->all();
+        $after = $snapshot();
         if ($before !== $after) {
-            Audit::log('salary_structure.lines_changed', $structure, 'Components or default amounts changed', ['lines' => $before], ['lines' => $after]);
+            Audit::log('salary_structure.lines_changed', $structure, 'Components, default amounts or rate bases changed', ['lines' => $before], ['lines' => $after]);
         }
     }
 
@@ -164,8 +171,8 @@ class SalaryStructureController extends Controller
             ])->values();
 
         $initial = old('lines') !== null
-            ? collect(old('lines'))->map(fn ($l) => ['id' => (int) ($l['component_id'] ?? 0), 'amount' => (string) ($l['default_amount'] ?? '')])->values()
-            : ($structure->exists ? $structure->lines->map(fn ($l) => ['id' => $l->pay_component_id, 'amount' => $l->default_amount !== null ? (string) $l->default_amount : ''])->values() : collect());
+            ? collect(old('lines'))->map(fn ($l) => ['id' => (int) ($l['component_id'] ?? 0), 'amount' => (string) ($l['default_amount'] ?? ''), 'basis' => ($l['rate_basis'] ?? '') ?: 'monthly'])->values()
+            : ($structure->exists ? $structure->lines->map(fn ($l) => ['id' => $l->pay_component_id, 'amount' => $l->default_amount !== null ? (string) $l->default_amount : '', 'basis' => $l->rate_basis ?: 'monthly'])->values() : collect());
 
         return [
             'structure' => $structure, 'components' => $all, 'initialLines' => $initial,

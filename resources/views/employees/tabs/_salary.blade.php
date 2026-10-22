@@ -117,7 +117,7 @@
                                     <x-combobox name="structure_id" label="Structure" placeholder="Choose a structure" :options="$structures->map(fn ($s) => ['value' => $s->id, 'label' => $s->name])->values()" />
                                 </div>
                                 @if ($current)
-                                    <p class="mt-3 text-sm text-amber-700">The employee's components are replaced by the structure's from the effective date, including any added or changed for this employee, and rate bases go back to monthly. The hours limit and statutory exemption are kept. Earlier salary versions are kept.</p>
+                                    <p class="mt-3 text-sm text-amber-700">The employee's components are replaced by the structure's from the effective date, including any added or changed for this employee, and rate bases are copied from the structure. The hours limit and statutory exemption are kept. Earlier salary versions are kept.</p>
                                 @endif
                                 @include('employees.tabs._salary_fields')
                             </x-confirm-action>
