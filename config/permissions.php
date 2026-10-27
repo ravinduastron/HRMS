@@ -49,6 +49,11 @@ return [
         'employee-salary.reveal' => 'Show salary amounts',
         'employee-salary.manage' => 'Assign structures, change salary components, rate basis, hours limit and statutory exemption',
     ],
+    'Statutory' => [
+        'statutory.view'           => 'View tax tables, contribution rates and employee rates',
+        'statutory.manage'         => 'Add tax table versions and EPF / MSPS / ETF rate versions (also needs all-scheme access)',
+        'statutory.employee-rates' => 'Set an employee\'s own EPF / MSPS contribution rate (of your schemes)',
+    ],
     'Attendance & leave' => [
         'attendance.view'     => 'View attendance (timesheets, employee Attendance tab, payroll preview)',
         'leave.view'          => 'View leave requests (employee Leave tab)',

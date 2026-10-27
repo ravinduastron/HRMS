@@ -1,10 +1,10 @@
 {{-- Shared by create (header + first version) and "new version". Vars: $v, $others, optional $payComponent, $groups (create only). --}}
 @php
-    $creating = ! isset($payComponent);
-    $flag = fn (string $k) => old('_flags') ? (bool) old($k) : (bool) ($v[$k] ?? false);
-    $field = 'block w-full rounded-md border border-slate-300 bg-white py-2 px-3 text-sm focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600';
-    $label = 'block text-sm font-medium text-slate-700';
-    $groupMap = ($groups ?? collect())->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'type' => $g->type, 'combine' => (bool) $g->combine_on_payslip])->values();
+$creating = ! isset($payComponent);
+$flag = fn (string $k) => old('_flags') ? (bool) old($k) : (bool) ($v[$k] ?? false);
+$field = 'block w-full rounded-md border border-slate-300 bg-white py-2 px-3 text-sm focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600';
+$label = 'block text-sm font-medium text-slate-700';
+$groupMap = ($groups ?? collect())->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'type' => $g->type, 'combine' => (bool) $g->combine_on_payslip])->values();
 @endphp
 
 <form method="POST" action="{{ $creating ? route('pay-components.store') : route('pay-components.versions.store', $payComponent) }}" class="grid gap-6 lg:grid-cols-3"
@@ -66,37 +66,37 @@
 
     <div class="space-y-6 lg:col-span-2">
         @if ($creating)
-            <x-card title="Identity">
-                <div class="grid gap-5 sm:grid-cols-2">
-                    <x-input name="code" label="Code" x-model="code" :value="old('code')" autocomplete="off" required placeholder="e.g. TRANSPORT"
-                        hint="Letters, digits and underscore. Used in formulas and cannot be changed later." />
-                    <x-input name="name" label="Name" :value="old('name')" required placeholder="Shown on the payslip" />
-                    <div class="space-y-1.5">
-                        <label for="type" class="{{ $label }}">Type</label>
-                        <select id="type" name="type" x-model="type" @change="group = ''" class="{{ $field }}" required>
-                            @foreach (\App\Models\PayComponent::TYPES as $k => $t)<option value="{{ $k }}" @selected(old('type', 'earning') === $k)>{{ $t }}</option>@endforeach
-                        </select>
-                        @error('type')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
-                    </div>
-                    <div>
-                        <x-combobox name="pay_component_group_id" label="Group" x-model="group" placeholder="Select a group"
-                            options-js="groups.filter(g => g.type === type).map(g => ({ value: g.id, label: g.name + (g.combine ? ' (one summed line)' : '') }))" />
-                        <p x-show="groups.filter(g => g.type === type).length === 0" x-cloak class="mt-1.5 text-sm text-amber-700">There is no active group of this type yet.</p>
-                        <p class="mt-1.5 text-sm">
-                            @can('pay-component-groups.manage')
-                                <button type="button" @click="gm.open = true" class="font-medium text-brand-700 hover:underline">+ Add a new group</button>
-                            @else
-                                <span class="text-slate-500">Group missing? Ask an administrator to add it.</span>
-                            @endcan
-                        </p>
-                    </div>
-                    <x-input name="payslip_order" type="number" label="Payslip order" :value="old('payslip_order', 100)" hint="Lower numbers appear first." />
-                    <div class="sm:col-span-2"><x-input name="description" label="Description" :value="old('description')" /></div>
-                    <label class="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
-                        <input type="checkbox" name="show_on_payslip" value="1" class="size-4 accent-brand-700" @checked(old('_flags') ? old('show_on_payslip') : true)> Show on the payslip
-                    </label>
+        <x-card title="Identity">
+            <div class="grid gap-5 sm:grid-cols-2">
+                <x-input name="code" label="Code" x-model="code" :value="old('code')" autocomplete="off" required placeholder="e.g. TRANSPORT"
+                    hint="Letters, digits and underscore. Used in formulas and cannot be changed later." />
+                <x-input name="name" label="Name" :value="old('name')" required placeholder="Shown on the payslip" />
+                <div class="space-y-1.5">
+                    <label for="type" class="{{ $label }}">Type</label>
+                    <select id="type" name="type" x-model="type" @change="group = ''" class="{{ $field }}" required>
+                        @foreach (\App\Models\PayComponent::TYPES as $k => $t)<option value="{{ $k }}" @selected(old('type', 'earning' )===$k)>{{ $t }}</option>@endforeach
+                    </select>
+                    @error('type')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
-            </x-card>
+                <div>
+                    <x-combobox name="pay_component_group_id" label="Group" x-model="group" placeholder="Select a group"
+                        options-js="groups.filter(g => g.type === type).map(g => ({ value: g.id, label: g.name + (g.combine ? ' (one summed line)' : '') }))" />
+                    <p x-show="groups.filter(g => g.type === type).length === 0" x-cloak class="mt-1.5 text-sm text-amber-700">There is no active group of this type yet.</p>
+                    <p class="mt-1.5 text-sm">
+                        @can('pay-component-groups.manage')
+                        <button type="button" @click="gm.open = true" class="font-medium text-brand-700 hover:underline">+ Add a new group</button>
+                        @else
+                        <span class="text-slate-500">Group missing? Ask an administrator to add it.</span>
+                        @endcan
+                    </p>
+                </div>
+                <x-input name="payslip_order" type="number" label="Payslip order" :value="old('payslip_order', 100)" hint="Lower numbers appear first." />
+                <div class="sm:col-span-2"><x-input name="description" label="Description" :value="old('description')" /></div>
+                <label class="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+                    <input type="checkbox" name="show_on_payslip" value="1" class="size-4 accent-brand-700" @checked(old('_flags') ? old('show_on_payslip') : true)> Show on the payslip
+                </label>
+            </div>
+        </x-card>
         @endif
 
         <x-card title="How it is calculated">
@@ -122,12 +122,12 @@
                         <p class="{{ $label }}">Percentage of</p>
                         <div class="mt-1.5 grid gap-2 sm:grid-cols-2">
                             @forelse ($others as $o)
-                                <label class="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                                    <input type="checkbox" name="percentage_of[]" value="{{ $o->code }}" x-model="of" class="size-4 accent-brand-700">
-                                    <span class="font-mono text-xs">{{ $o->code }}</span> <span class="text-slate-500">{{ $o->name }}</span>
-                                </label>
+                            <label class="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
+                                <input type="checkbox" name="percentage_of[]" value="{{ $o->code }}" x-model="of" class="size-4 accent-brand-700">
+                                <span class="font-mono text-xs">{{ $o->code }}</span> <span class="text-slate-500">{{ $o->name }}</span>
+                            </label>
                             @empty
-                                <p class="text-sm text-slate-500">No other components yet.</p>
+                            <p class="text-sm text-slate-500">No other components yet.</p>
                             @endforelse
                         </div>
                         @error('percentage_of')<p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>@enderror
@@ -153,7 +153,7 @@
                 <div class="space-y-1.5">
                     <label for="rounding_mode" class="{{ $label }}">Rounding</label>
                     <select id="rounding_mode" name="rounding_mode" class="{{ $field }}">
-                        @foreach (['half_up' => 'Nearest (0.5 rounds up)', 'up' => 'Always up', 'down' => 'Always down'] as $k => $t)<option value="{{ $k }}" @selected(old('rounding_mode', $v['rounding_mode']) === $k)>{{ $t }}</option>@endforeach
+                        @foreach (['half_up' => 'Nearest (0.5 rounds up)', 'up' => 'Always up', 'down' => 'Always down'] as $k => $t)<option value="{{ $k }}" @selected(old('rounding_mode', $v['rounding_mode'])===$k)>{{ $t }}</option>@endforeach
                     </select>
                 </div>
                 <x-input name="rounding_dp" type="number" min="0" max="6" label="Decimal places" :value="old('rounding_dp', $v['rounding_dp'])" required />
@@ -164,35 +164,46 @@
             <p class="mb-3 text-sm text-slate-500">Flags tell the payroll engine which base this component belongs to. EPF and MSPS are separate bases: each employee is calculated on the base of their own fund. Rates and tax tables are configured separately.</p>
             <div class="grid gap-3 sm:grid-cols-2">
                 @foreach (['epf_applicable' => 'Counts for EPF', 'msps_applicable' => 'Counts for MSPS', 'etf_applicable' => 'Counts for ETF', 'tax_applicable' => 'Taxable income', 'ot_base' => 'Part of the overtime base'] as $k => $t)
-                    <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="{{ $k }}" value="1" class="size-4 accent-brand-700" @checked($flag($k))> {{ $t }}</label>
+                <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="{{ $k }}" value="1" class="size-4 accent-brand-700" @checked($flag($k))> {{ $t }}</label>
                 @endforeach
+            </div>
+            <div class="mt-5 grid gap-5 sm:grid-cols-2">
+                <div class="space-y-1.5">
+                    <label for="tax_treatment" class="{{ $label }}">Tax treatment (when taxable)</label>
+                    <select id="tax_treatment" name="tax_treatment" class="{{ $field }}">
+                        <option value="regular" @selected(old('tax_treatment', $v['tax_treatment'] ?? 'regular' )==='regular' )>Regular pay (monthly tax table)</option>
+                        <option value="lump_sum" @selected(old('tax_treatment', $v['tax_treatment'] ?? 'regular' )==='lump_sum' )>Lump sum, such as a bonus or incentive (lump-sum tax table)</option>
+                    </select>
+                </div>
+                <x-input name="taxable_percentage" type="number" step="0.01" min="0" max="100" label="Taxable percentage" :value="old('taxable_percentage', $v['taxable_percentage'] ?? 100)"
+                    hint="The share of the amount that is taxable. 100 = all of it, 50 = half." />
             </div>
             <div class="mt-5 grid gap-5 sm:grid-cols-3">
                 <div class="space-y-1.5">
                     <label for="proration" class="{{ $label }}">Proration</label>
                     <select id="proration" name="proration" class="{{ $field }}">
-                        @foreach (['none' => 'None', 'calendar_days' => 'By calendar days', 'working_days' => 'By working days'] as $k => $t)<option value="{{ $k }}" @selected(old('proration', $v['proration']) === $k)>{{ $t }}</option>@endforeach
+                        @foreach (['none' => 'None', 'calendar_days' => 'By calendar days', 'working_days' => 'By working days'] as $k => $t)<option value="{{ $k }}" @selected(old('proration', $v['proration'])===$k)>{{ $t }}</option>@endforeach
                     </select>
                 </div>
                 <div class="space-y-1.5">
                     <label for="payment_timing" class="{{ $label }}">Paid</label>
                     <select id="payment_timing" name="payment_timing" class="{{ $field }}">
-                        @foreach (['regular' => 'With salary', 'separate' => 'Separately'] as $k => $t)<option value="{{ $k }}" @selected(old('payment_timing', $v['payment_timing']) === $k)>{{ $t }}</option>@endforeach
+                        @foreach (['regular' => 'With salary', 'separate' => 'Separately'] as $k => $t)<option value="{{ $k }}" @selected(old('payment_timing', $v['payment_timing'])===$k)>{{ $t }}</option>@endforeach
                     </select>
                 </div>
                 <div class="space-y-1.5">
                     <label for="pay_cycle_rule" class="{{ $label }}">Applies in</label>
                     <select id="pay_cycle_rule" name="pay_cycle_rule" class="{{ $field }}">
-                        @foreach (['every_period' => 'Every pay period', 'first_period' => 'First period of the month', 'last_period' => 'Last period of the month'] as $k => $t)<option value="{{ $k }}" @selected(old('pay_cycle_rule', $v['pay_cycle_rule']) === $k)>{{ $t }}</option>@endforeach
+                        @foreach (['every_period' => 'Every pay period', 'first_period' => 'First period of the month', 'last_period' => 'Last period of the month'] as $k => $t)<option value="{{ $k }}" @selected(old('pay_cycle_rule', $v['pay_cycle_rule'])===$k)>{{ $t }}</option>@endforeach
                     </select>
                 </div>
             </div>
         </x-card>
 
         @unless ($creating)
-            <x-card title="Reason for change">
-                <x-input name="change_note" label="Why is this changing?" :value="old('change_note')" required />
-            </x-card>
+        <x-card title="Reason for change">
+            <x-input name="change_note" label="Why is this changing?" :value="old('change_note')" required />
+        </x-card>
         @endunless
 
         <div class="flex justify-end gap-2">
@@ -203,35 +214,35 @@
 
     <div class="space-y-6"><x-formula-help :others="$others" /></div>
     @can('pay-component-groups.manage')
-        {{-- Rendered outside the form (teleport) so its inputs are never submitted with the component. --}}
-        <template x-teleport="body">
-            <div x-show="gm.open" x-cloak @keydown.escape.window="gm.open = false" role="dialog" aria-modal="true" class="fixed inset-0 z-[60] grid place-items-center p-4">
-                <div class="absolute inset-0 bg-slate-900/50" @click="gm.open = false"></div>
-                <div class="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl ring-1 ring-slate-900/10">
-                    <h3 class="text-base font-semibold text-slate-900">New group</h3>
-                    <p class="mt-1 text-sm text-slate-500">Type: <strong class="font-medium text-slate-700" x-text="typeLabels[type]"></strong>. Your component form stays as it is, and the new group is selected for you.</p>
-                    <div class="mt-4 space-y-4">
-                        <div class="space-y-1.5">
-                            <label for="gm_name" class="{{ $label }}">Name</label>
-                            <input id="gm_name" type="text" x-model="gm.name" @keydown.enter.prevent="saveGroup()" autocomplete="off" placeholder="e.g. Overtime" class="{{ $field }}">
-                            <p x-show="gm.errors.name" x-cloak x-text="(gm.errors.name || [])[0]" class="text-sm text-red-600"></p>
-                        </div>
-                        <div class="space-y-1.5">
-                            <label for="gm_order" class="{{ $label }}">Payslip order</label>
-                            <input id="gm_order" type="number" min="0" x-model="gm.order" @keydown.enter.prevent="saveGroup()" class="{{ $field }}">
-                            <p x-show="gm.errors.payslip_order" x-cloak x-text="(gm.errors.payslip_order || [])[0]" class="text-sm text-red-600"></p>
-                        </div>
-                        <label class="flex items-center gap-2 text-sm text-slate-700">
-                            <input type="checkbox" x-model="gm.combine" class="size-4 accent-brand-700"> Show as one line on the payslip (sum, amount only)
-                        </label>
-                        <p x-show="gm.errors.type" x-cloak x-text="(gm.errors.type || [])[0]" class="text-sm text-red-600"></p>
+    {{-- Rendered outside the form (teleport) so its inputs are never submitted with the component. --}}
+    <template x-teleport="body">
+        <div x-show="gm.open" x-cloak @keydown.escape.window="gm.open = false" role="dialog" aria-modal="true" class="fixed inset-0 z-[60] grid place-items-center p-4">
+            <div class="absolute inset-0 bg-slate-900/50" @click="gm.open = false"></div>
+            <div class="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl ring-1 ring-slate-900/10">
+                <h3 class="text-base font-semibold text-slate-900">New group</h3>
+                <p class="mt-1 text-sm text-slate-500">Type: <strong class="font-medium text-slate-700" x-text="typeLabels[type]"></strong>. Your component form stays as it is, and the new group is selected for you.</p>
+                <div class="mt-4 space-y-4">
+                    <div class="space-y-1.5">
+                        <label for="gm_name" class="{{ $label }}">Name</label>
+                        <input id="gm_name" type="text" x-model="gm.name" @keydown.enter.prevent="saveGroup()" autocomplete="off" placeholder="e.g. Overtime" class="{{ $field }}">
+                        <p x-show="gm.errors.name" x-cloak x-text="(gm.errors.name || [])[0]" class="text-sm text-red-600"></p>
                     </div>
-                    <div class="mt-5 flex justify-end gap-2">
-                        <x-button variant="secondary" @click="gm.open = false">Cancel</x-button>
-                        <x-button :loading="'gm.busy'" @click="saveGroup()">Add group</x-button>
+                    <div class="space-y-1.5">
+                        <label for="gm_order" class="{{ $label }}">Payslip order</label>
+                        <input id="gm_order" type="number" min="0" x-model="gm.order" @keydown.enter.prevent="saveGroup()" class="{{ $field }}">
+                        <p x-show="gm.errors.payslip_order" x-cloak x-text="(gm.errors.payslip_order || [])[0]" class="text-sm text-red-600"></p>
                     </div>
+                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" x-model="gm.combine" class="size-4 accent-brand-700"> Show as one line on the payslip (sum, amount only)
+                    </label>
+                    <p x-show="gm.errors.type" x-cloak x-text="(gm.errors.type || [])[0]" class="text-sm text-red-600"></p>
+                </div>
+                <div class="mt-5 flex justify-end gap-2">
+                    <x-button variant="secondary" @click="gm.open = false">Cancel</x-button>
+                    <x-button :loading="'gm.busy'" @click="saveGroup()">Add group</x-button>
                 </div>
             </div>
-        </template>
+        </div>
+    </template>
     @endcan
 </form>

@@ -76,7 +76,8 @@ class PayComponentController extends Controller
         $latest = $component->latestVersion();
         $v = $latest ? array_merge($this->defaults(), $latest->only([
             'calc_method', 'default_amount', 'percentage_rate', 'percentage_of', 'formula', 'rounding_mode', 'rounding_dp',
-            'epf_applicable', 'msps_applicable', 'etf_applicable', 'tax_applicable', 'ot_base', 'proration', 'payment_timing', 'pay_cycle_rule',
+            'epf_applicable', 'msps_applicable', 'etf_applicable', 'tax_applicable', 'ot_base', 'proration', 'payment_timing', 'pay_cycle_rule', 
+            'tax_treatment', 'taxable_percentage',
         ])) : $this->defaults();
         $v['effective_from'] = max(today(), $latest?->effective_from->copy()->addDay() ?? today())->toDateString();
         $v['change_note'] = '';
@@ -240,6 +241,8 @@ class PayComponentController extends Controller
             'proration' => ['required', Rule::in(['none', 'calendar_days', 'working_days'])],
             'payment_timing' => ['required', Rule::in(['regular', 'separate'])],
             'pay_cycle_rule' => ['required', Rule::in(['every_period', 'first_period', 'last_period'])],
+            'tax_treatment' => ['nullable', Rule::in(['regular', 'lump_sum'])],
+            'taxable_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'change_note' => ['nullable', 'string', 'max:500'],
         ];
     }
@@ -260,6 +263,7 @@ class PayComponentController extends Controller
             'etf_applicable' => $request->boolean('etf_applicable'),
             'tax_applicable' => $request->boolean('tax_applicable'), 'ot_base' => $request->boolean('ot_base'),
             'proration' => $d['proration'], 'payment_timing' => $d['payment_timing'], 'pay_cycle_rule' => $d['pay_cycle_rule'],
+            'tax_treatment' => $d['tax_treatment'] ?? 'regular', 'taxable_percentage' => $d['taxable_percentage'] ?? 100,
             'change_note' => $d['change_note'] ?? null,
         ];
     }
@@ -270,7 +274,8 @@ class PayComponentController extends Controller
             'effective_from' => today()->toDateString(), 'calc_method' => 'fixed', 'default_amount' => null, 'percentage_rate' => null,
             'percentage_of' => [], 'formula' => '', 'rounding_mode' => 'half_up', 'rounding_dp' => 2,
             'epf_applicable' => false, 'msps_applicable' => false, 'etf_applicable' => false, 'tax_applicable' => false, 'ot_base' => false,
-            'proration' => 'none', 'payment_timing' => 'regular', 'pay_cycle_rule' => 'every_period', 'change_note' => '',
+            'proration' => 'none', 'payment_timing' => 'regular', 'pay_cycle_rule' => 'every_period', 'change_note' => '', 
+            'tax_treatment' => 'regular', 'taxable_percentage' => 100
         ];
     }
 }

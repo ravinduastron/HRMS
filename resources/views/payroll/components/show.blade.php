@@ -45,13 +45,13 @@ $yes = fn ($b) => $b ? 'Yes' : 'No';
                 <dt class="text-slate-500">{{ $cur->displayFormula() ? 'Formula' : 'Amount' }}</dt>
                 <dd class="mt-0.5 font-medium text-slate-900">
                     @if ($cur->displayFormula())
-                        <code class="break-all rounded bg-slate-100 px-2 py-1 text-xs">{{ $cur->displayFormula() }}</code>
+                    <code class="break-all rounded bg-slate-100 px-2 py-1 text-xs">{{ $cur->displayFormula() }}</code>
                     @elseif ($cur->calc_method === 'fixed')
-                        {{ $cur->default_amount !== null 
+                    {{ $cur->default_amount !== null 
                             ? 'Default '.number_format($cur->default_amount, 2) 
                             : 'Set per employee' }}
                     @else
-                        {{ $cur->calc_method === 'input' 
+                    {{ $cur->calc_method === 'input' 
                             ? 'Entered each pay period' 
                             : 'Supplied by another module' }}
                     @endif
@@ -66,6 +66,11 @@ $yes = fn ($b) => $b ? 'Yes' : 'No';
                 <dd class="mt-0.5 font-medium text-slate-900">{{ str_replace('_', ' ', ucfirst($cur->proration)) }}</dd>
             </div>
             <div>
+                <dt class="text-slate-500">Tax treatment</dt>
+                <dd class="mt-0.5 font-medium text-slate-900">{{ $cur->tax_applicable ? ($cur->tax_treatment === 'lump_sum' ? 'Lump sum' : 'Regular') : 'Not taxable' }}
+                    @if ($cur->tax_applicable && (float) $cur->taxable_percentage < 100) · {{ rtrim(rtrim((string) $cur->taxable_percentage, '0'), '.') }}% taxable @endif</dd>
+            </div>
+            <div>
                 <dt class="text-slate-500">Payslip group</dt>
                 <dd class="mt-0.5 font-medium text-slate-900">{{ $payComponent->group?->name ?? '—' }}
                     @if ($payComponent->group?->combine_on_payslip)<span class="block text-xs font-normal text-slate-500">Shown as one summed line</span>@endif</dd>
@@ -74,7 +79,7 @@ $yes = fn ($b) => $b ? 'Yes' : 'No';
         @else
         <p class="text-sm text-slate-500">No version is in force yet
             @if ($latest)
-                : the first one starts on {{ $latest->effective_from->format('d M Y') }}
+            : the first one starts on {{ $latest->effective_from->format('d M Y') }}
             @endif.</p>
         @endif
         @if ($latest && $cur && $latest->id !== $cur->id)

@@ -38,6 +38,11 @@ return [
                 ['label' => 'Pay components',    'url' => '/payroll/components', 'can' => 'pay-components.view', 'live' => true],
                 ['label' => 'Component groups',  'url' => '/payroll/groups', 'can' => 'pay-component-groups.view', 'live' => true],
             ]],
+            ['label' => 'Statutory', 'icon' => 'library', 'children' => [
+                ['label' => 'Tax tables',         'url' => '/payroll/statutory/tax-tables', 'can' => 'statutory.view', 'live' => true],
+                ['label' => 'Contribution rates', 'url' => '/payroll/statutory/rates', 'can' => 'statutory.view', 'live' => true],
+                ['label' => 'Employee rates',     'url' => '/payroll/statutory/employee-rates', 'can' => 'statutory.view', 'live' => true],
+            ]],
         ],
     ],
     [
