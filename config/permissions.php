@@ -54,6 +54,15 @@ return [
         'statutory.manage'         => 'Add tax table versions and EPF / MSPS / ETF rate versions (also needs all-scheme access)',
         'statutory.employee-rates' => 'Set an employee\'s own EPF / MSPS contribution rate (of your schemes)',
     ],
+    'Loans' => [
+        'loans.view'            => 'View loans, loan types and monthly loan deductions (of your schemes)',
+        'loans.manage'          => 'Create loans, change interest rates, cancel loans, record monthly deductions',
+        'loans.settle'          => 'Settle loans early (cash received)',
+        'loans.waive-interest'  => 'Ignore the interest when settling a loan early',
+        'loans.import'          => 'Import existing loans from Excel and reverse imports',
+        'loans.valuation'       => 'Run loan fair value (market rates and saved valuations also need all-scheme access)',
+        'loan-types.manage'     => 'Create and change loan types',
+    ],
     'Attendance & leave' => [
         'attendance.view'     => 'View attendance (timesheets, employee Attendance tab, payroll preview)',
         'leave.view'          => 'View leave requests (employee Leave tab)',
