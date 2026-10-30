@@ -15,6 +15,7 @@
         'salary'     => ['label' => 'Salary', 'ready' => true, 'visible' => auth()->user()->can('employee-salary.view')],
         'attendance' => ['label' => 'Attendance', 'ready' => true, 'visible' => auth()->user()->can('attendance.view')],
         'leave'      => ['label' => 'Leave', 'ready' => true, 'visible' => auth()->user()->can('leave.view')],
+        'loans'      => ['label' => 'Loans', 'ready' => true, 'visible' => auth()->user()->can('loans.view')],
         'history'    => ['label' => 'History', 'ready' => true],
     ];
     $initialTab = array_key_exists(request()->string('tab')->toString(), $tabs) ? request()->string('tab')->toString() : 'profile';
@@ -104,6 +105,7 @@
     @can('employee-salary.view')@include('employees.tabs._salary')@endcan
     @can('attendance.view')@include('employees.tabs._attendance')@endcan
     @can('leave.view')@include('employees.tabs._leave')@endcan
+    @can('loans.view')@include('employees.tabs._loans')@endcan
 
     <div x-show="tab === 'history'" x-cloak class="space-y-6">
         <x-card title="MiHCM sync changes" :padding="false">

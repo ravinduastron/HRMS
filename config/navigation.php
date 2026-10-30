@@ -42,7 +42,6 @@ return [
                 ['label' => 'Loans',               'url' => '/payroll/loans', 'can' => 'loans.view', 'live' => true],
                 ['label' => 'Loan types',          'url' => '/payroll/loans/types', 'can' => 'loans.view', 'live' => true],
                 ['label' => 'Monthly deductions',  'url' => '/payroll/loans/deductions', 'can' => 'loans.view', 'live' => true],
-                ['label' => 'Import from Excel',   'url' => '/payroll/loans/import', 'can' => 'loans.import', 'live' => true],
                 ['label' => 'Fair value',          'url' => '/payroll/loans/fair-value', 'can' => 'loans.valuation', 'live' => true],
             ]],
             ['label' => 'Statutory', 'icon' => 'library', 'children' => [

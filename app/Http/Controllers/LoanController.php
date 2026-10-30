@@ -41,26 +41,64 @@ class LoanController extends Controller
         ]);
     }
 
+    /**
+     * The employee is chosen from the user's own schemes (scheme first, then employee). `?employee_id=` pre-selects one
+     * (used by the Loans tab of the employee page). The scheme is only a filter: it is not stored on the loan.
+     */
     public function create(Request $request): View
     {
+        $user = $request->user();
+        $canNone = $user->can('schemes.all'); // employees without a scheme are visible to all-scheme users only
+        $employee = $request->filled('employee_id') ? Employee::query()->find((int) $request->query('employee_id')) : null; // the scheme scope applies
+
+        $schemeOptions = Scheme::visibleTo($user)->orderBy('name')->get()->map(fn ($s) => ['value' => (string) $s->id, 'label' => $s->name])->values();
+        if ($canNone) {
+            $schemeOptions->push(['value' => 'none', 'label' => 'No scheme']);
+        }
+
+        $initialScheme = (string) old('scheme', $employee ? ($employee->scheme_id ?? ($canNone ? 'none' : '')) : '');
+
         return view('loans.create', [
             'types' => LoanType::where('is_active', true)->orderBy('name')->get(),
-            'employee' => $request->filled('employee_no') ? Employee::query()->where('employee_no', $request->query('employee_no'))->first() : null,
+            'employee' => $employee, 'schemeOptions' => $schemeOptions->values(), 'initialScheme' => $initialScheme,
         ]);
+    }
+
+    /** Active employees of one scheme (or "none") that the user may see, for the employee dropdown of the new-loan form. */
+    public function employees(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $scheme = (string) $request->query('scheme');
+
+        $query = Employee::query()->where('is_active', true); // the scheme scope applies on top
+        if ($scheme === 'none') {
+            abort_unless($user->can('schemes.all'), 403);
+            $query->whereNull('scheme_id');
+        } elseif (ctype_digit($scheme)) {
+            abort_unless(Scheme::visibleTo($user)->whereKey((int) $scheme)->exists(), 404);
+            $query->where('scheme_id', (int) $scheme);
+        } else {
+            abort(422, 'Choose a scheme.');
+        }
+
+        return response()->json(
+            $query->orderBy('employee_no')->get(['id', 'employee_no', 'full_name', 'display_name'])
+                ->map(fn ($e) => ['value' => $e->id, 'label' => $e->employee_no.' · '.($e->display_name ?? $e->full_name)])->values(),
+        )->header('Cache-Control', 'no-store');
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'employee_no' => ['required', 'string', 'max:30'], 'loan_type_id' => ['required', 'integer', 'exists:loan_types,id'],
+            'employee_id' => ['required', 'integer'], 'loan_type_id' => ['required', 'integer', 'exists:loan_types,id'],
             'reference' => ['nullable', 'string', 'max:40'], 'amount' => ['required', 'string', 'max:20'], 'rate' => ['nullable', 'string', 'max:10'],
             'term' => ['required', 'integer', 'between:1,600'], 'disbursed_on' => ['required', 'date'], 'first_due_month' => ['required', 'regex:/^\d{4}-\d{2}$/'],
             'notes' => ['nullable', 'string', 'max:255'],
-        ]);
+        ], ['employee_id.required' => 'Choose a scheme and then an employee.']);
 
-        $employee = Employee::query()->where('employee_no', trim($data['employee_no']))->first(); // the scheme scope applies
+        $employee = Employee::query()->find($data['employee_id']); // the scheme scope applies: an employee outside the user's schemes is not found
         if (! $employee) {
-            throw ValidationException::withMessages(['employee_no' => 'No employee has this number, or the employee is not in your schemes.']);
+            throw ValidationException::withMessages(['employee_id' => 'This employee was not found, or is not in your schemes.']);
         }
 
         $loan = $this->loans->create($employee, LoanType::findOrFail($data['loan_type_id']), array_merge($data, ['first_due_month' => $data['first_due_month'].'-01']), $request->user());

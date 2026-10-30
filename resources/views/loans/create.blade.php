@@ -17,8 +17,22 @@
 <form method="POST" action="{{ route('loans.store') }}" class="grid gap-6 lg:grid-cols-3"
     x-data="{
         types: @js($typeData), typeId: @js((string) old('loan_type_id', '')), amount: @js(old('amount', '')), rate: @js(old('rate', '')), term: @js(old('term', '')),
+        scheme: @js($initialScheme), employee: @js((string) old('employee_id', $employee?->id ?? '')), employees: [], loading: false,
         res: null, busy: false,
         get t() { return this.types.find(x => String(x.id) === String(this.typeId)) ?? null; },
+        async loadEmployees(keep) {
+            this.employees = [];
+            if (!this.scheme) { this.employee = ''; return; }
+            this.loading = true;
+            try {
+                const r = await fetch(@js(route('loans.employees')) + '?scheme=' + encodeURIComponent(this.scheme), { headers: { Accept: 'application/json' } });
+                if (!r.ok) throw new Error();
+                this.employees = await r.json();
+            } catch (e) { window.toast('Could not load the employees.', 'error'); }
+            this.loading = false;
+            if (!keep || !this.employees.some(e => String(e.value) === String(this.employee))) this.employee = '';
+        },
+        pickScheme(v) { this.scheme = v; this.loadEmployees(false); },
         async preview() {
             this.busy = true; this.res = null;
             try {
@@ -29,13 +43,17 @@
                 this.res = r.status === 422 ? { error: Object.values(j.errors ?? {}).flat()[0] ?? 'Check the values.' } : j;
             } catch (e) { this.res = { error: 'Could not calculate.' }; }
             this.busy = false;
-        } }">
+        } }"
+    x-init="loadEmployees(true)">
     @csrf
     <div class="space-y-6 lg:col-span-2">
         <x-card title="Loan">
             <div class="grid gap-5 sm:grid-cols-2">
-                <x-input name="employee_no" label="Employee number" :value="old('employee_no', $employee?->employee_no)" required autocomplete="off"
-                    :hint="$employee ? ($employee->display_name ?? $employee->full_name) : 'As in the employee list.'" />
+                <x-combobox name="scheme" label="Scheme" x-model="scheme" @change="pickScheme($event.detail.value)" placeholder="Choose a scheme"
+                    :options="$schemeOptions" hint="Only the schemes allocated to you are listed." />
+                <x-combobox name="employee_id" label="Employee" x-model="employee" placeholder="Choose an employee"
+                    options-js="employees" disabled-js="!scheme || loading" />
+                <p x-show="scheme && !loading && employees.length === 0" x-cloak class="text-sm text-amber-700 sm:col-span-2">There are no active employees in this scheme.</p>
                 <x-combobox name="loan_type_id" label="Loan type" x-model="typeId" placeholder="Choose a type" :options="$types->map(fn ($t) => ['value' => $t->id, 'label' => $t->name])->values()" />
                 <x-input name="amount" label="Loan amount (Rs)" x-model="amount" :value="old('amount')" inputmode="decimal" required />
                 <x-input name="rate" label="Interest rate (% a year)" x-model="rate" :value="old('rate')" inputmode="decimal"

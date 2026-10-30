@@ -16,6 +16,7 @@ Route::prefix('payroll/loans')->group(function () {
     Route::get('create', [LoanController::class, 'create'])->middleware('can:loans.manage')->name('loans.create');
     Route::post('/', [LoanController::class, 'store'])->middleware('can:loans.manage')->name('loans.store');
     Route::post('preview', [LoanController::class, 'preview'])->middleware('can:loans.manage')->name('loans.preview');
+    Route::get('employees', [LoanController::class, 'employees'])->middleware('can:loans.manage')->name('loans.employees'); // employee picker of the new-loan form
 
     // Loan types
     Route::get('types', [LoanTypeController::class, 'index'])->middleware('can:loans.view')->name('loan-types.index');
@@ -30,7 +31,7 @@ Route::prefix('payroll/loans')->group(function () {
     Route::get('deductions/export', [LoanDeductionController::class, 'export'])->middleware('can:loans.view')->name('loans.deductions.export');
     Route::post('deductions/record', [LoanDeductionController::class, 'record'])->middleware('can:loans.manage')->name('loans.deductions.record');
 
-    // Excel import of existing loans
+    // Excel import of existing loans (reached from the Loans screen)
     Route::get('import', [LoanImportController::class, 'index'])->middleware('can:loans.import')->name('loans.import.index');
     Route::get('import/template', [LoanImportController::class, 'template'])->middleware('can:loans.import')->name('loans.import.template');
     Route::post('import', [LoanImportController::class, 'upload'])->middleware('can:loans.import')->name('loans.import.upload');
