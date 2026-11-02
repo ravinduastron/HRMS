@@ -14,7 +14,9 @@ class PayComponentVersion extends Model
     use Auditable;
 
     public const METHODS = [
-        'fixed' => 'Fixed amount', 'percentage' => 'Percentage of other components', 'formula' => 'Formula',
+        'fixed' => 'Fixed amount',
+        'variable' => 'Variable amount (entered per employee or in a pay run)',
+        'percentage' => 'Percentage of other components', 'formula' => 'Formula',
         'input' => 'Entered each period (bonuses, incentives...)', 'system' => 'Supplied by another module (loans...)',
     ];
 

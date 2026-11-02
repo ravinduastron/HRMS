@@ -65,8 +65,9 @@
                                 <td class="px-4 py-2.5">
                                     <div x-show="info(l.id).fixed" class="flex flex-wrap items-center gap-2">
                                         <div class="space-y-1.5">
-                                            <input type="number" step="0.01" min="0" :name="'lines[' + i + '][default_amount]'" x-model="l.amount"
+                                            <input type="number" step="0.01" min="0" :name="'lines[' + i + '][default_amount]'" x-model="l.amount" x-show="!info(l.id).variable" :disabled="info(l.id).variable"
                                                 placeholder="Set per employee" class="{{ $field }} max-w-50 font-mono">
+                                            <span x-show="info(l.id).variable" x-cloak class="text-xs text-slate-500">Amount entered per employee or in a pay run</span>
                                         </div>
                                         <div class="space-y-1.5">
                                             <select :name="'lines[' + i + '][rate_basis]'" x-model="l.basis" aria-label="Rate basis" class="{{ $field }} w-32">

@@ -9,7 +9,8 @@
     $input = 'mt-1.5 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600';
     $typeColor = ['earning' => 'green', 'deduction' => 'red', 'employer_contribution' => 'brand', 'info' => 'slate'];
     $lines = $current ? $current->lines->sortBy(fn ($l) => $l->component?->payslip_order ?? 999)->values() : collect();
-    $isFixed = fn ($l) => $l->component?->latestVersion()?->calc_method === 'fixed';
+    $isFixed = fn ($l) => in_array($l->component?->latestVersion()?->calc_method, ['fixed', 'variable'], true);
+    $isVariable = fn ($l) => $l->component?->latestVersion()?->calc_method === 'variable';
     $fixedLines = $lines->filter(fn ($l) => $isFixed($l) && $l->component)->values();
     $hasAmounts = $lines->contains(fn ($l) => $isFixed($l) && $l->amount !== null);
     $methodText = ['formula' => 'Calculated', 'percentage' => 'Calculated', 'input' => 'Entered each period', 'system' => 'From another module'];
@@ -69,7 +70,7 @@
                             <p class="mt-1 text-left text-xs text-slate-500">Enter the amounts you want to set or change. Each one keeps its own rate basis (monthly, daily or hourly); use "Change amount" on a line to change the basis. Leave a box empty to keep that amount as it is. All of them are saved as one change.</p>
                             <div class="mt-3 max-h-64 space-y-3 overflow-y-auto pr-1 text-left">
                                 @foreach ($fixedLines as $l)
-                                    <label class="block text-sm font-medium text-slate-700"><span class="font-mono text-xs">{{ $l->component_code }}</span> <span class="font-normal text-slate-500">{{ $l->component_name }} · {{ $basisText[$l->rate_basis ?? 'monthly'] }}</span>@if ($l->amount === null) <span class="text-xs text-amber-700">· amount needed</span>@endif
+                                    <label class="block text-sm font-medium text-slate-700"><span class="font-mono text-xs">{{ $l->component_code }}</span> <span class="font-normal text-slate-500">{{ $l->component_name }} · {{ $basisText[$l->rate_basis ?? 'monthly'] }}</span>@if ($l->amount === null && ! $isVariable($l)) <span class="text-xs text-amber-700">· amount needed</span>@endif
                                         <input type="text" name="amounts[{{ $l->pay_component_id }}]" inputmode="decimal" autocomplete="off" placeholder="Unchanged" class="{{ $input }} font-mono">
                                     </label>
                                 @endforeach
@@ -156,7 +157,7 @@
                             <td class="px-5 py-3 text-right">
                                 @if ($fixed)
                                     @if ($l->amount === null)
-                                        <x-badge color="amber">Amount needed</x-badge>
+                                        @if ($isVariable($l))<span class="text-xs text-slate-500">Entered in the pay run</span>@else<x-badge color="amber">Amount needed</x-badge>@endif
                                     @else
                                         <span x-show="amounts === null" class="font-mono text-slate-500">••••••</span>
                                         <span x-show="amounts !== null" x-cloak class="font-mono font-medium text-slate-900" x-text="amounts && amounts[{{ $l->id }}] !== undefined ? fmt(amounts[{{ $l->id }}]) : ''"></span>
@@ -173,7 +174,7 @@
                                             <x-confirm-action :action="route('employees.salary.components.amount', [$employee, $c])" method="PATCH" :title="'Change '.$l->component_code.' amount'" confirm="Save amount" variant="primary">
                                                 <x-slot:trigger><x-button variant="ghost" size="sm">Change amount</x-button></x-slot:trigger>
                                                 <label class="mt-3 block text-left text-sm font-medium text-slate-700">New amount
-                                                    <input type="text" name="amount" inputmode="decimal" required autocomplete="off" class="{{ $input }} font-mono">
+                                                    <input type="text" name="amount" inputmode="decimal" @required(! $isVariable($l)) autocomplete="off" placeholder="{{ $isVariable($l) ? 'Empty = entered in the pay run' : '' }}" class="{{ $input }} font-mono">
                                                 </label>
                                                 <label class="mt-3 block text-left text-sm font-medium text-slate-700">Rate basis
                                                     <select name="rate_basis" class="{{ $input }}">

@@ -146,7 +146,7 @@ class SalaryStructureController extends Controller
         foreach (array_values($lines) as $i => $l) {
             $c = $components[$l['component_id']];
             $fixed = $this->salary->isFixed($c);
-            $amount = $fixed && ($l['default_amount'] ?? '') !== '' ? Decimal::round(Decimal::make($l['default_amount']), 2) : null;
+            $amount = $fixed && ! $this->salary->isVariable($c) && ($l['default_amount'] ?? '') !== '' ? Decimal::round(Decimal::make($l['default_amount']), 2) : null;
             // Only fixed-amount lines have a rate basis; every other line is stored as monthly.
             $basis = $fixed ? (($l['rate_basis'] ?? '') ?: 'monthly') : 'monthly';
             $structure->lines()->create(['pay_component_id' => $c->id, 'default_amount' => $amount, 'rate_basis' => $basis, 'sort' => $i]);
@@ -167,7 +167,8 @@ class SalaryStructureController extends Controller
             ->map(fn ($c) => [
                 'id' => $c->id, 'code' => $c->code, 'name' => $c->name, 'type' => PayComponent::TYPES[$c->type],
                 'fixed' => $this->salary->isFixed($c), 'inactive' => ! $c->is_active,
-                'default' => $c->latestVersion()->default_amount !== null ? (string) $c->latestVersion()->default_amount : null,
+                'variable' => $this->salary->isVariable($c),
+                'default' => ! $this->salary->isVariable($c) && $c->latestVersion()->default_amount !== null ? (string) $c->latestVersion()->default_amount : null,
             ])->values();
 
         $initial = old('lines') !== null

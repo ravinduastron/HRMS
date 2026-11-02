@@ -241,7 +241,7 @@ class PayComponentController extends Controller
             'proration' => ['required', Rule::in(['none', 'calendar_days', 'working_days'])],
             'payment_timing' => ['required', Rule::in(['regular', 'separate'])],
             'pay_cycle_rule' => ['required', Rule::in(['every_period', 'first_period', 'last_period'])],
-            'tax_treatment' => ['nullable', Rule::in(['regular', 'lump_sum'])],
+            'tax_treatment' => ['nullable', Rule::in(['regular', 'lump_sum', 'dividend'])],
             'taxable_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'change_note' => ['nullable', 'string', 'max:500'],
         ];

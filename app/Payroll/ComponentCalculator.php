@@ -12,7 +12,7 @@ use App\Payroll\Formula\Formula;
  */
 final class ComponentCalculator
 {
-    public const LEAF_METHODS = ['fixed', 'input', 'system'];
+    public const LEAF_METHODS = ['fixed', 'variable', 'input', 'system'];
 
     private static array $astCache = [];
 

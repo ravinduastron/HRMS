@@ -15,12 +15,21 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-/** Tax tables (monthly and lump sum). Viewing needs statutory.view; changing needs statutory.manage plus schemes.all (the tables are global). */
+/**
+ * Tax tables: monthly (regular pay), lump sum, and dividend (a flat rate, stored as one band with no limit).
+ * Viewing needs statutory.view; changing needs statutory.manage plus schemes.all (the tables are global).
+ */
 class TaxTableController extends Controller
 {
     private const MONEY = '/^\d{1,13}(\.\d{1,2})?$/';
 
     public function __construct(private StatutoryService $statutory) {}
+
+    /** Query-string key of a table's version tabs. */
+    private function key(string $kind): string
+    {
+        return ['monthly' => 'monthly', 'lump_sum' => 'lump', 'flat' => 'dividend'][$kind] ?? $kind;
+    }
 
     public function index(Request $request): View
     {
@@ -28,7 +37,7 @@ class TaxTableController extends Controller
         foreach (TaxTable::orderByRaw("kind = 'monthly' desc")->orderBy('id')->get() as $t) {
             $versions = $t->versions()->get();
             $inForce = $this->statutory->taxTableVersionAt($t->code);
-            $key = $t->kind === 'monthly' ? 'monthly' : 'lump';
+            $key = $this->key($t->kind);
             $selected = $versions->firstWhere('id', (int) $request->query($key)) ?? $versions->firstWhere('id', $inForce?->id) ?? $versions->first();
             $slabs = $selected?->toSlabs() ?? [];
 
@@ -64,6 +73,17 @@ class TaxTableController extends Controller
 
     public function storeVersion(Request $request, TaxTable $table): RedirectResponse
     {
+        if ($table->kind === 'flat') {
+            // A flat table is one band from 0 with no limit and nothing deducted: the form only asks for the rate.
+            $rate = is_string($request->input('rate')) ? str_replace([',', ' ', '%'], '', $request->input('rate')) : '';
+            $request->merge(['rate' => $rate]);
+            $request->validate(
+                ['rate' => ['required', 'numeric', 'between:0,100', 'regex:/^\d{1,3}(\.\d{1,4})?$/']],
+                ['rate.*' => 'Enter the rate as a number from 0 to 100 (up to 4 decimals).'],
+            );
+            $request->merge(['slabs' => [['up_to' => '', 'rate' => $rate, 'fixed' => '0']]]);
+        }
+
         $request->merge(['slabs' => collect($request->input('slabs', []))->map(fn ($r) => is_array($r) ? array_map(fn ($v) => is_string($v) ? str_replace([',', ' '], '', $v) : $v, $r) : $r)->all()]);
 
         $data = $request->validate([
@@ -85,7 +105,7 @@ class TaxTableController extends Controller
         $result = $this->statutory->addTaxTableVersion($table, $data['slabs'], $data['label'], $data['source_note'] ?? null,
             Carbon::parse($data['effective_from']), $data['change_note'], $request->user());
 
-        $redirect = redirect()->route('statutory.tax-tables', [$table->kind === 'monthly' ? 'monthly' : 'lump' => $result['version']->id]);
+        $redirect = redirect()->route('statutory.tax-tables', [$this->key($table->kind) => $result['version']->id]);
 
         return $result['warnings']
             ? $redirect->with('warning', 'Saved, with points to check: '.implode(' ', $result['warnings']))
@@ -98,7 +118,7 @@ class TaxTableController extends Controller
         $request->merge(collect($request->all())->map(fn ($v) => is_string($v) ? str_replace([',', ' '], '', $v) : $v)->all());
 
         $d = $request->validate([
-            'table' => ['required', 'in:apit_monthly,apit_lump_sum'], 'month' => ['required', 'regex:/^\d{4}-\d{2}$/'],
+            'table' => ['required', 'in:apit_monthly,apit_lump_sum,dividend'], 'month' => ['required', 'regex:/^\d{4}-\d{2}$/'],
             'income' => ['nullable', 'regex:'.self::MONEY],
             'a' => ['nullable', 'regex:'.self::MONEY], 'b' => ['nullable', 'regex:'.self::MONEY], 'c' => ['nullable', 'regex:'.self::MONEY],
             'tax_on_a' => ['nullable', 'regex:'.self::MONEY], 'tax_on_b' => ['nullable', 'regex:'.self::MONEY], 'prior' => ['nullable', 'regex:'.self::MONEY],
@@ -121,7 +141,12 @@ class TaxTableController extends Controller
         $band = fn (array $r) => 'Band '.($r['band'] + 1).': over '.Format::money($r['over'], 0).($r['up_to'] === null ? ', no upper limit' : ' up to '.Format::money($r['up_to'], 0)).', rate '.$r['rate'].'%, less '.Format::money($r['fixed']);
 
         try {
-            if ($d['table'] === 'apit_monthly') {
+            if ($d['table'] === 'dividend') {
+                $r = SlabTax::tax($slabs, $v('income'), $dp, $mode);
+                $lines = [$version->label.' ('.$version->taxTable->name.')',
+                    Format::money($v('income')).' × '.$r['rate'].'% = '.Format::money($r['tax']).' withheld',
+                    'Paid to the employee after tax: '.Format::money(\App\Payroll\Decimal::sub($v('income'), $r['tax']))];
+            } elseif ($d['table'] === 'apit_monthly') {
                 $r = SlabTax::tax($slabs, $v('income'), $dp, $mode);
                 $lines = [$version->label.' ('.$version->taxTable->name.')', $band($r),
                     Format::money($v('income')).' × '.$r['rate'].'% = '.Format::money($r['gross']).', less '.Format::money($r['fixed']).' = '.Format::money($r['tax'])];

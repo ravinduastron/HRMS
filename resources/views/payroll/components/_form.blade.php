@@ -149,6 +149,7 @@ $groupMap = ($groups ?? collect())->map(fn ($g) => ['id' => $g->id, 'name' => $g
 
                 <p x-show="method === 'input'" x-cloak class="text-sm text-slate-500 sm:col-span-2">The amount is entered for each pay period (screen or Excel upload), for example bonuses and incentives.</p>
                 <p x-show="method === 'system'" x-cloak class="text-sm text-slate-500 sm:col-span-2">The amount is supplied by another module (for example loan installments).</p>
+                <p x-show="method === 'variable'" x-cloak class="text-sm text-slate-500 sm:col-span-2">No default amount here. The amount is entered on the employee's salary, or in a pay run. The rate basis (monthly, daily, hourly) can be set on the salary structure and the employee.</p>
 
                 <div class="space-y-1.5">
                     <label for="rounding_mode" class="{{ $label }}">Rounding</label>
@@ -173,6 +174,7 @@ $groupMap = ($groups ?? collect())->map(fn ($g) => ['id' => $g->id, 'name' => $g
                     <select id="tax_treatment" name="tax_treatment" class="{{ $field }}">
                         <option value="regular" @selected(old('tax_treatment', $v['tax_treatment'] ?? 'regular' )==='regular' )>Regular pay (monthly tax table)</option>
                         <option value="lump_sum" @selected(old('tax_treatment', $v['tax_treatment'] ?? 'regular' )==='lump_sum' )>Lump sum, such as a bonus or incentive (lump-sum tax table)</option>
+                        <option value="dividend" @selected(old('tax_treatment', $v['tax_treatment'] ?? 'regular' )==='dividend' )>Dividend (final withholding tax, flat dividend rate)</option>
                     </select>
                 </div>
                 <x-input name="taxable_percentage" type="number" step="0.01" min="0" max="100" label="Taxable percentage" :value="old('taxable_percentage', $v['taxable_percentage'] ?? 100)"

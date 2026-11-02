@@ -31,7 +31,7 @@
                     <div class="space-y-3">
                         @foreach ($needs['leaves'] as $code)
                             <div><label for="c_{{ $code }}" class="block text-xs text-slate-600"><span class="font-mono">{{ $code }}</span> · {{ $defs[$code]['name'] }}
-                                ({{ ['fixed' => 'fixed', 'input' => 'entered each period', 'system' => 'from another module'][$defs[$code]['method']] }})</label>
+                                ({{ ['fixed' => 'fixed', 'variable' => 'variable amount', 'input' => 'entered each period', 'system' => 'from another module'][$defs[$code]['method']] }})</label>
                                 <input id="c_{{ $code }}" name="values[{{ $code }}]" value="{{ $values[$code] ?? '0' }}" inputmode="decimal" class="{{ $field }} mt-1"></div>
                         @endforeach
                     </div>
@@ -61,7 +61,7 @@
                         <tr @class(['bg-brand-50/50' => $code === $payComponent->code])>
                             <td class="px-5 py-3 text-slate-400">{{ $i + 1 }}</td>
                             <td class="px-5 py-3"><span class="font-mono text-xs font-medium text-slate-900">{{ $code }}</span><span class="block text-xs text-slate-500">{{ $r['name'] }}</span></td>
-                            <td class="px-5 py-3 text-xs text-slate-600">@if ($r['formula'])<code class="break-all">{{ $r['formula'] }}</code>@else{{ ['fixed' => 'Fixed amount', 'input' => 'Entered amount', 'system' => 'From another module'][$r['method']] }}@endif</td>
+                            <td class="px-5 py-3 text-xs text-slate-600">@if ($r['formula'])<code class="break-all">{{ $r['formula'] }}</code>@else{{ ['fixed' => 'fixed', 'variable' => 'variable amount', 'input' => 'entered each period', 'system' => 'from another module'][$r['method']] }}@endif</td>
                             <td class="px-5 py-3 text-right font-mono text-xs text-slate-500">{{ $r['raw'] }}</td>
                             <td class="px-5 py-3 text-right font-mono font-medium text-slate-900">{{ $r['value'] }}</td>
                         </tr>

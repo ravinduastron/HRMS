@@ -359,7 +359,8 @@ class LoanService
                 'installment_id' => $i->id, 'loan_id' => $i->loan_id, 'reference' => $i->loan->reference, 'type' => $i->loan->type->name, 'seq' => $i->seq,
                 'due_month' => $i->due_month->toDateString(), 'overdue' => $overdue,
                 'capital' => Decimal::round((string) $i->principal_amount, $dp, $mode), 'interest' => Decimal::round((string) $i->interest_amount, $dp, $mode),
-                'capital_component_id' => $i->loan->type->capital_component_id, 'interest_component_id' => $i->loan->type->interest_component_id,
+                'capital_component_id' => $i->loan->type->capital_component_id,
+                'interest_component_id' => $i->loan->type->payslip_display === 'single' ? $i->loan->type->capital_component_id : $i->loan->type->interest_component_id, // single line: both go to the one pay item
             ];
         }
         foreach ($out as $e => $row) {

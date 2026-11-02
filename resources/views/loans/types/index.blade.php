@@ -21,7 +21,13 @@
                 <td class="px-5 py-3">{{ \App\Payroll\Loans\LoanSchedule::METHODS[$t->interest_method] ?? $t->interest_method }}
                     <p class="text-xs text-slate-500">{{ \App\Payroll\Decimal::plain((string) $t->default_rate) }}% a year @if ($t->max_term_months) · up to {{ $t->max_term_months }} months @endif</p></td>
                 <td class="px-5 py-3 text-sm">{{ \App\Payroll\Loans\LoanSettlement::RULES[$t->settlement_interest_rule] ?? $t->settlement_interest_rule }}</td>
-                <td class="px-5 py-3 text-xs text-slate-600">Capital: {{ $t->capitalComponent?->code ?? '—' }}<br>Interest: {{ $t->interestComponent?->code ?? '—' }}</td>
+                <td class="px-5 py-3 text-xs text-slate-600">
+                    @if ($t->payslip_display === 'single')
+                        One line: {{ $t->capitalComponent?->code ?? '—' }}
+                    @else
+                        Capital: {{ $t->capitalComponent?->code ?? '—' }}<br>Interest: {{ $t->interestComponent?->code ?? '—' }}
+                    @endif
+                </td>
                 <td class="px-5 py-3">{{ $t->loans_count }}</td>
                 <td class="px-5 py-3"><x-badge :color="$t->is_active ? 'green' : 'slate'">{{ $t->is_active ? 'Active' : 'Inactive' }}</x-badge></td>
                 <td class="px-5 py-3 text-right">

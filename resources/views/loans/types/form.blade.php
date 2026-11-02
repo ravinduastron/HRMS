@@ -6,10 +6,11 @@
     $creating = ! $type->exists;
     $field = 'block w-full rounded-md border border-slate-300 bg-white py-2 px-3 text-sm focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600';
     $plain = fn ($v) => $v === null ? '' : \App\Payroll\Decimal::plain((string) $v);
+    $display = old('payslip_display', $type->payslip_display ?? 'separate');
 @endphp
 <x-page-header :title="$creating ? 'New loan type' : 'Edit '.$type->name" description="Changes apply to loans created from now on. A loan keeps the method and settlement rule it was created with." />
 
-<form method="POST" action="{{ $creating ? route('loan-types.store') : route('loan-types.update', $type) }}" class="space-y-6">
+<form method="POST" action="{{ $creating ? route('loan-types.store') : route('loan-types.update', $type) }}" class="space-y-6" x-data="{ display: @js($display) }">
     @csrf
     @unless ($creating) @method('PUT') @endunless
 
@@ -53,11 +54,29 @@
     </x-card>
 
     <x-card title="Payslip lines">
-        <div class="grid gap-5 sm:grid-cols-2">
-            <x-combobox name="capital_component_id" label="Capital repayment is deducted as" :options="$components" :value="old('capital_component_id', $type->capital_component_id)" placeholder="Choose a deduction component" />
-            <x-combobox name="interest_component_id" label="Interest is deducted as" :options="$components" :value="old('interest_component_id', $type->interest_component_id)" placeholder="Choose a deduction component" />
+        <div class="space-y-5">
+            <div class="space-y-1.5 sm:w-2/3">
+                <label for="payslip_display" class="block text-sm font-medium text-slate-700">The payslip and paysheet show the loan as</label>
+                <select id="payslip_display" name="payslip_display" x-model="display" class="{{ $field }}">
+                    @foreach (\App\Http\Controllers\LoanTypeController::DISPLAYS as $k => $t)<option value="{{ $k }}">{{ $t }}</option>@endforeach
+                </select>
+                @error('payslip_display')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                <p class="text-xs text-slate-500" x-show="display === 'single'" x-cloak>Capital and interest are added together and deducted as one pay item. The loan page and Monthly deductions still show them apart.</p>
+                <p class="text-xs text-slate-500" x-show="display === 'separate'">Capital and interest are deducted as two different pay items, on separate lines.</p>
+            </div>
+
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div class="space-y-1.5">
+                    <label for="capital_component_id" class="block text-sm font-medium text-slate-700" x-text="display === 'single' ? 'Installment is deducted as' : 'Capital repayment is deducted as'">Capital repayment is deducted as</label>
+                    <x-combobox name="capital_component_id" :options="$components" :value="old('capital_component_id', $type->capital_component_id)" placeholder="Choose a deduction component" />
+                </div>
+                <div class="space-y-1.5" x-show="display === 'separate'">
+                    <label for="interest_component_id" class="block text-sm font-medium text-slate-700">Interest is deducted as</label>
+                    <x-combobox name="interest_component_id" :options="$components" :value="old('interest_component_id', $type->interest_component_id)" placeholder="Choose a deduction component" />
+                </div>
+            </div>
+            <p class="text-sm text-slate-500" x-show="display === 'separate'">Capital and interest must be different components.</p>
         </div>
-        <p class="mt-3 text-sm text-slate-500">Capital and interest are different components, so the payslip and paysheet show them on separate lines.</p>
     </x-card>
 
     <div class="flex justify-end gap-2">

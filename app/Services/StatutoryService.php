@@ -150,6 +150,10 @@ class StatutoryService
     /** Checks that never block saving: a jump between neighbouring bands, and the "annual = 12 x monthly" cross-check against the other table. */
     public function warningsFor(TaxTable $table, array $slabs, Carbon $from): array
     {
+        if ($table->kind === 'flat') {
+            return [];
+        }
+
         $warnings = [];
         $tolerance = (string) config('statutory.continuity_tolerance', '1.00');
         $gap = SlabTax::maxGap($slabs);

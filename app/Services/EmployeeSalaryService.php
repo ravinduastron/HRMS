@@ -32,7 +32,12 @@ class EmployeeSalaryService
     /** Only components calculated as "fixed" carry an amount per employee. */
     public function isFixed(PayComponent $c): bool
     {
-        return $c->latestVersion()?->calc_method === 'fixed';
+        return in_array($c->latestVersion()?->calc_method, ['fixed', 'variable'], true);
+    }
+
+    public function isVariable(PayComponent $c): bool
+    {
+        return $c->latestVersion()?->calc_method === 'variable';
     }
 
     public function inForce(Employee $employee, ?Carbon $date = null): ?EmployeeSalaryVersion
@@ -68,14 +73,16 @@ class EmployeeSalaryService
         $date = ($date ?? today())->copy()->startOfDay();
 
         $versions = EmployeeSalaryVersion::where('employee_id', $employee->id)->where('approval_status', 'approved')
-            ->with(['lines' => fn ($q) => $q->select('id', 'employee_salary_version_id', 'pay_component_id', 'component_code', 'component_name')])
+            ->with(['lines' => fn($q) => $q->select('id', 'employee_salary_version_id', 'pay_component_id', 'component_code', 'component_name')])
             ->orderByDesc('effective_from')->orderByDesc('id')->get();
         $current = $this->inForce($employee, $date);
         $current?->load('lines.component.versions');
 
         return [
-            'current' => $current, 'versions' => $versions, 'date' => $date,
-            'next' => $versions->filter(fn ($v) => $v->effective_from->gt($date))->sortBy('effective_from')->first(),
+            'current' => $current,
+            'versions' => $versions,
+            'date' => $date,
+            'next' => $versions->filter(fn($v) => $v->effective_from->gt($date))->sortBy('effective_from')->first(),
         ];
     }
 
@@ -85,8 +92,8 @@ class EmployeeSalaryService
         $have = $current ? $current->lines->pluck('pay_component_id')->all() : [];
 
         return PayComponent::where('is_active', true)->whereNotIn('id', $have)->with('versions')->orderBy('code')->get()
-            ->filter(fn ($c) => $c->latestVersion())
-            ->map(fn ($c) => ['value' => $c->id, 'label' => $c->code.' · '.$c->name])->values();
+            ->filter(fn($c) => $c->latestVersion())
+            ->map(fn($c) => ['value' => $c->id, 'label' => $c->code . ' · ' . $c->name])->values();
     }
 
     public function hasLaterVersion(Employee $employee, Carbon $date): bool
@@ -110,9 +117,9 @@ class EmployeeSalaryService
             } catch (FormulaException) {
                 continue;
             }
-            $missing = array_values(array_filter($refs, fn ($r) => isset($defs[$r]) && ! in_array($r, $codes, true)));
+            $missing = array_values(array_filter($refs, fn($r) => isset($defs[$r]) && ! in_array($r, $codes, true)));
             if ($missing) {
-                $problems[] = "{$code} needs ".implode(', ', $missing).'.';
+                $problems[] = "{$code} needs " . implode(', ', $missing) . '.';
             }
         }
 
@@ -143,7 +150,7 @@ class EmployeeSalaryService
                 throw ValidationException::withMessages(['structure_id' => "{$c->code} is inactive or has no calculation. Update the structure first."]);
             }
             $amount = null;
-            if ($this->isFixed($c)) {
+           if ($this->isFixed($c) && ! $this->isVariable($c)) { // a structure never carries an amount for a variable component
                 $default = $l->default_amount ?? $c->latestVersion()->default_amount;
                 $amount = $default !== null ? Decimal::round(Decimal::make((string) $default), 2) : null;
             }
@@ -260,9 +267,18 @@ class EmployeeSalaryService
             throw ValidationException::withMessages(['max_hours' => 'Nothing was changed.']);
         }
 
-        return $this->store($employee, null, $lines, $date, 'changed', $note, $by,
+        return $this->store(
+            $employee,
+            null,
+            $lines,
+            $date,
+            'changed',
+            $note,
+            $by,
             ['rules_changed' => ['max_hours' => ['from' => $oldHours, 'to' => $newHours], 'statutory_exempt' => ['from' => (bool) $base->statutory_exempt, 'to' => $statutoryExempt]]],
-            $base, ['max_hours' => $hours, 'statutory_exempt' => $statutoryExempt]);
+            $base,
+            ['max_hours' => $hours, 'statutory_exempt' => $statutoryExempt]
+        );
     }
 
     /* ------------------------------ internals ------------------------------ */
@@ -273,6 +289,9 @@ class EmployeeSalaryService
             return null; // formula / percentage / input / system components carry no stored amount
         }
         if ($amount === null || trim($amount) === '') {
+            if ($this->isVariable($component)) {
+                return null; // a variable amount may stay empty: it is entered in the pay run
+            }
             throw ValidationException::withMessages(['amount' => "Enter an amount for {$component->code}."]);
         }
 
@@ -303,7 +322,7 @@ class EmployeeSalaryService
             throw ValidationException::withMessages(['effective_from' => 'This employee has no salary in force on that date. Assign a structure first.']);
         }
 
-        return $base->lines->mapWithKeys(fn ($l) => [$l->pay_component_id => ['amount' => $l->amount, 'source' => $l->source, 'basis' => $l->rate_basis ?: 'monthly']])->all();
+        return $base->lines->mapWithKeys(fn($l) => [$l->pay_component_id => ['amount' => $l->amount, 'source' => $l->source, 'basis' => $l->rate_basis ?: 'monthly']])->all();
     }
 
     /** The version a change builds on (the one in force on that date). */
@@ -320,7 +339,7 @@ class EmployeeSalaryService
 
             $problems = $this->missingDependencies(array_keys($lines));
             if ($problems) {
-                throw ValidationException::withMessages(['pay_component_id' => 'Not saved. '.implode(' ', $problems).' Add the missing component(s), or remove the one that uses them.']);
+                throw ValidationException::withMessages(['pay_component_id' => 'Not saved. ' . implode(' ', $problems) . ' Add the missing component(s), or remove the one that uses them.']);
             }
 
             // Pay rules (hours limit, statutory exemption) are carried forward from the version this change builds on.
@@ -329,28 +348,42 @@ class EmployeeSalaryService
 
             $version = new EmployeeSalaryVersion;
             $version->forceFill([
-                'employee_id' => $employee->id, 'effective_from' => $date->toDateString(),
+                'employee_id' => $employee->id,
+                'effective_from' => $date->toDateString(),
                 'salary_structure_id' => $structure?->id ?? $from?->salary_structure_id,
                 'structure_name' => $structure?->name ?? $from?->structure_name,
-                'change_type' => $type, 'change_note' => mb_substr(trim($note), 0, 500),
-                'max_hours' => $rules['max_hours'], 'statutory_exempt' => $rules['statutory_exempt'],
-                'approval_status' => 'approved', 'approved_by' => $by->id, 'approved_at' => now(), // approval engine hooks in here later
-                'created_by' => $by->id, 'created_by_name' => $by->name,
+                'change_type' => $type,
+                'change_note' => mb_substr(trim($note), 0, 500),
+                'max_hours' => $rules['max_hours'],
+                'statutory_exempt' => $rules['statutory_exempt'],
+                'approval_status' => 'approved',
+                'approved_by' => $by->id,
+                'approved_at' => now(), // approval engine hooks in here later
+                'created_by' => $by->id,
+                'created_by_name' => $by->name,
             ])->save();
 
             $components = PayComponent::whereIn('id', array_keys($lines))->get()->keyBy('id');
             foreach ($lines as $componentId => $l) {
                 $c = $components[$componentId];
                 (new EmployeeSalaryLine)->forceFill([
-                    'employee_salary_version_id' => $version->id, 'pay_component_id' => $c->id,
-                    'component_code' => $c->code, 'component_name' => $c->name,
-                    'amount' => $l['amount'], 'rate_basis' => $l['basis'] ?? 'monthly', 'source' => $l['source'],
+                    'employee_salary_version_id' => $version->id,
+                    'pay_component_id' => $c->id,
+                    'component_code' => $c->code,
+                    'component_name' => $c->name,
+                    'amount' => $l['amount'],
+                    'rate_basis' => $l['basis'] ?? 'monthly',
+                    'source' => $l['source'],
                 ])->save();
             }
 
             // No amounts in the audit trail: only which components changed (and the pay rules, which are not amounts).
-            Audit::log('employee_salary.'.$type, $employee, 'Salary '.$type.' effective '.$date->format('d M Y'),
-                context: $audit + ['version_id' => $version->id, 'effective_from' => $date->toDateString(), 'reason' => $version->change_note]);
+            Audit::log(
+                'employee_salary.' . $type,
+                $employee,
+                'Salary ' . $type . ' effective ' . $date->format('d M Y'),
+                context: $audit + ['version_id' => $version->id, 'effective_from' => $date->toDateString(), 'reason' => $version->change_note]
+            );
 
             return $version;
         });

@@ -51,9 +51,7 @@ $yes = fn ($b) => $b ? 'Yes' : 'No';
                             ? 'Default '.number_format($cur->default_amount, 2) 
                             : 'Set per employee' }}
                     @else
-                    {{ $cur->calc_method === 'input' 
-                            ? 'Entered each pay period' 
-                            : 'Supplied by another module' }}
+                    {{ ['input' => 'Entered each pay period', 'variable' => 'Entered per employee or in a pay run'][$cur->calc_method] ?? 'Supplied by another module' }}
                     @endif
                 </dd>
             </div>
@@ -67,7 +65,7 @@ $yes = fn ($b) => $b ? 'Yes' : 'No';
             </div>
             <div>
                 <dt class="text-slate-500">Tax treatment</dt>
-                <dd class="mt-0.5 font-medium text-slate-900">{{ $cur->tax_applicable ? ($cur->tax_treatment === 'lump_sum' ? 'Lump sum' : 'Regular') : 'Not taxable' }}
+                <dd class="mt-0.5 font-medium text-slate-900">{{ $cur->tax_applicable ? ['lump_sum' => 'Lump sum', 'dividend' => 'Dividend (final tax)'][$cur->tax_treatment] ?? 'Regular' : 'Not taxable' }}
                     @if ($cur->tax_applicable && (float) $cur->taxable_percentage < 100) · {{ rtrim(rtrim((string) $cur->taxable_percentage, '0'), '.') }}% taxable @endif</dd>
             </div>
             <div>

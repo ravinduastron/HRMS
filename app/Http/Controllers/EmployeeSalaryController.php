@@ -56,9 +56,9 @@ class EmployeeSalaryController extends Controller
     public function updateAmount(Request $request, Employee $employee, PayComponent $component): RedirectResponse
     {
         return $this->run($employee, function () use ($request, $employee, $component) {
-            $data = $request->validate($this->common() + ['amount' => ['required', ...self::AMOUNT], 'rate_basis' => self::BASIS]);
+            $data = $request->validate($this->common() + ['amount' => [$this->salary->isVariable($component) ? 'nullable' : 'required', ...self::AMOUNT], 'rate_basis' => self::BASIS]);
             $date = Carbon::parse($data['effective_from']);
-            $this->salary->setAmount($employee, $component, $data['amount'], $data['rate_basis'] ?? null, $date, $data['change_note'], $request->user());
+            $this->salary->setAmount($employee, $component,  $data['amount'] ?? null, $data['rate_basis'] ?? null, $date, $data['change_note'], $request->user());
 
             return $this->done($employee, $date, "Amount for {$component->code} changed.");
         });
