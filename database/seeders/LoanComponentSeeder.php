@@ -8,8 +8,9 @@ use App\Services\PayComponentService;
 use Illuminate\Database\Seeder;
 
 /**
- * Creates the two payslip lines loans use: LOAN_CAPITAL and LOAN_INTEREST (deductions supplied by the loan module), in a group
- * "Loan deductions" that prints them as SEPARATE lines. Then pick them on each loan type. Safe to re-run; edit freely afterwards.
+ * Creates the two payslip items loans use: LOAN_CAPITAL and LOAN_INTEREST (deductions supplied by the loan module), in a group
+ * "Loan deductions" that the payslip prints as ONE summed line (the paysheet can still show the two items apart or by group).
+ * Safe to re-run; an existing group is not changed (tick or untick "Show as one line" on Payroll > Component groups).
  */
 class LoanComponentSeeder extends Seeder
 {
@@ -17,7 +18,7 @@ class LoanComponentSeeder extends Seeder
     {
         $group = PayComponentGroup::firstOrCreate(
             ['name' => 'Loan deductions'],
-            ['type' => 'deduction', 'description' => 'Loan capital and interest, shown on separate lines', 'payslip_order' => 65, 'combine_on_payslip' => false, 'is_active' => true],
+            ['type' => 'deduction', 'description' => 'Loan capital and interest, printed as one line on the payslip', 'payslip_order' => 65, 'combine_on_payslip' => true, 'is_active' => true],
         );
 
         $version = [

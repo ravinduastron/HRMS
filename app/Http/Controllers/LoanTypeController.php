@@ -13,21 +13,19 @@ use Illuminate\View\View;
 
 class LoanTypeController extends Controller
 {
-    public const DISPLAYS = ['separate' => 'Separate lines (capital and interest)', 'single' => 'One line (capital + interest together)'];
-
     public function index(): View
     {
-        return view('loans.types.index', ['types' => LoanType::withCount('loans')->with(['capitalComponent', 'interestComponent'])->orderBy('name')->get()]);
+        return view('loans.types.index', ['types' => LoanType::withCount('loans')->with(['capitalComponent.group', 'interestComponent.group'])->orderBy('name')->get()]);
     }
 
     public function create(): View
     {
-        return view('loans.types.form', $this->formData(new LoanType(['interest_method' => 'declining', 'default_rate' => 0, 'settlement_interest_rule' => 'full', 'payslip_display' => 'separate', 'is_active' => true])));
+        return view('loans.types.form', $this->formData(new LoanType(['interest_method' => 'declining', 'default_rate' => 0, 'settlement_interest_rule' => 'full', 'is_active' => true])));
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate($this->rules($request));
+        $data = $request->validate($this->rules());
         $type = LoanType::create($this->attributes($data) + ['code' => strtoupper($data['code']), 'is_active' => true]);
 
         return redirect()->route('loan-types.index')->with('status', "Loan type {$type->code} created.");
@@ -40,10 +38,10 @@ class LoanTypeController extends Controller
 
     public function update(Request $request, LoanType $type): RedirectResponse
     {
-        $data = $request->validate($this->rules($request, $type));
+        $data = $request->validate($this->rules($type));
         $type->update($this->attributes($data)); // Auditable records old and new values; existing loans keep their own method and settlement rule
 
-        return redirect()->route('loan-types.index')->with('status', 'Loan type updated. Loans already created keep their own method and settlement rule. The payslip layout applies to payslips from now on.');
+        return redirect()->route('loan-types.index')->with('status', 'Loan type updated. Loans already created keep their own method and settlement rule.');
     }
 
     public function toggle(LoanType $type): RedirectResponse
@@ -53,10 +51,9 @@ class LoanTypeController extends Controller
         return back()->with('status', $type->is_active ? 'Loan type activated.' : 'Loan type deactivated. No new loans can use it; existing loans are not affected.');
     }
 
-    private function rules(Request $request, ?LoanType $type = null): array
+    private function rules(?LoanType $type = null): array
     {
         $component = Rule::exists('pay_components', 'id')->where('type', 'deduction')->where('is_active', true);
-        $single = $request->input('payslip_display') === 'single';
 
         return [
             'code' => $type ? ['nullable'] : ['required', 'string', 'regex:/^[A-Za-z][A-Za-z0-9_]{1,29}$/', 'unique:loan_types,code'],
@@ -67,32 +64,31 @@ class LoanTypeController extends Controller
             'max_term_months' => ['nullable', 'integer', 'between:1,600'],
             'max_amount' => ['nullable', 'numeric', 'min:0', 'regex:/^\d{1,13}(\.\d{1,2})?$/'],
             'settlement_interest_rule' => ['required', Rule::in(array_keys(LoanSettlement::RULES))],
-            'payslip_display' => ['required', Rule::in(array_keys(self::DISPLAYS))],
-            // single line: ONE pay item (stored as the capital item) takes capital + interest; separate: two different items
             'capital_component_id' => ['required', 'integer', $component],
-            'interest_component_id' => $single ? ['nullable'] : ['required', 'integer', $component, 'different:capital_component_id'],
+            'interest_component_id' => ['required', 'integer', $component, 'different:capital_component_id'],
         ];
     }
 
     private function attributes(array $d): array
     {
-        $single = $d['payslip_display'] === 'single';
-
         return [
             'name' => trim($d['name']), 'description' => $d['description'] ?? null, 'interest_method' => $d['interest_method'], 'default_rate' => $d['default_rate'],
             'max_term_months' => $d['max_term_months'] ?? null, 'max_amount' => $d['max_amount'] ?? null, 'settlement_interest_rule' => $d['settlement_interest_rule'],
-            'payslip_display' => $d['payslip_display'],
-            'capital_component_id' => $d['capital_component_id'],
-            'interest_component_id' => $single ? null : $d['interest_component_id'],
+            'capital_component_id' => $d['capital_component_id'], 'interest_component_id' => $d['interest_component_id'],
         ];
     }
 
     private function formData(LoanType $type): array
     {
+        $components = PayComponent::with('group')->where('type', 'deduction')
+            ->where(fn ($q) => $q->where('is_active', true)->orWhereIn('id', array_filter([$type->capital_component_id, $type->interest_component_id])))
+            ->orderBy('code')->get();
+
         return [
             'type' => $type,
-            'components' => PayComponent::where('type', 'deduction')->where(fn ($q) => $q->where('is_active', true)->orWhereIn('id', array_filter([$type->capital_component_id, $type->interest_component_id])))
-                ->orderBy('code')->get()->map(fn ($c) => ['value' => $c->id, 'label' => $c->code.' · '.$c->name])->values(),
+            'components' => $components->map(fn ($c) => ['value' => $c->id, 'label' => $c->code.' · '.$c->name])->values(),
+            // for the "what will the payslip show" hint: component id => its group
+            'groupOf' => $components->mapWithKeys(fn ($c) => [(string) $c->id => ['g' => $c->group?->id, 'name' => $c->group?->name, 'combine' => (bool) $c->group?->combine_on_payslip]])->all(),
         ];
     }
 }

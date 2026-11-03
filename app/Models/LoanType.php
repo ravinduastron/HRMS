@@ -38,4 +38,20 @@ class LoanType extends Model
     {
         return $this->belongsTo(PayComponent::class, 'interest_component_id');
     }
+
+    /**
+     * How the payslip prints this loan, decided by the pay component groups of the two items: both in the SAME group that is shown
+     * as one line on the payslip = one line named after the group; otherwise two lines. (Load capitalComponent.group and interestComponent.group first.)
+     *
+     * @return array{single: bool, label: ?string}
+     */
+    public function payslipLayout(): array
+    {
+        $c = $this->capitalComponent?->group;
+        $i = $this->interestComponent?->group;
+
+        return $c && $i && $c->id === $i->id && $c->combine_on_payslip
+            ? ['single' => true, 'label' => $c->name]
+            : ['single' => false, 'label' => null];
+    }
 }
