@@ -40,6 +40,12 @@ return [
         'pay-component-groups.view'   => 'View pay component groups',
         'pay-component-groups.manage' => 'Create, change and deactivate pay component groups',
     ],
+    'Pay periods' => [
+        'pay-periods.view'     => 'View pay periods (of your schemes)',
+        'pay-periods.generate' => 'Generate and refresh the pay periods of a scheme for a tax year',
+        'pay-periods.close'    => 'Close a pay period',
+        'pay-periods.reopen'   => 'Reopen a closed pay period',
+    ],
     'Salary structures' => [
         'salary-structures.view'   => 'View salary structures (of your schemes)',
         'salary-structures.manage' => 'Create and change salary structures (of your schemes)',

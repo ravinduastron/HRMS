@@ -33,6 +33,7 @@ return [
     [
         'heading' => 'Payroll',
         'items' => [
+            ['label' => 'Pay periods', 'icon' => 'calendar', 'url' => '/payroll/periods', 'can' => 'pay-periods.view', 'live' => true],
             ['label' => 'Compensation', 'icon' => 'document', 'children' => [
                 ['label' => 'Salary structures', 'url' => '/compensation/structures', 'can' => 'salary-structures.view', 'live' => true],
                 ['label' => 'Pay components',    'url' => '/payroll/components', 'can' => 'pay-components.view', 'live' => true],
