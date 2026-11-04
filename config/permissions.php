@@ -63,6 +63,12 @@ return [
         'loans.valuation'       => 'Run loan fair value (market rates and saved valuations also need all-scheme access)',
         'loan-types.manage'     => 'Create and change loan types',
     ],
+    'Hire purchases' => [
+        'hire-purchases.view'           => 'View hire purchases, vendors, the employee Hire purchases tab and monthly deductions (of your schemes)',
+        'hire-purchases.manage'         => 'Create hire purchases, change future deductions, record monthly deductions',
+        'hire-purchases.stop'           => 'Stop the deductions of a hire purchase (for example when the employee leaves)',
+        'hire-purchase-vendors.manage'  => 'Add, change and deactivate hire purchase vendors',
+    ],
     'Attendance & leave' => [
         'attendance.view'     => 'View attendance (timesheets, employee Attendance tab, payroll preview)',
         'leave.view'          => 'View leave requests (employee Leave tab)',

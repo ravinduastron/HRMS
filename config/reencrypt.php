@@ -16,5 +16,8 @@ return [
         'loan_rate_changes'      => ['columns' => ['outstanding_principal', 'old_installment', 'new_installment', 'old_remaining_interest', 'new_remaining_interest']],
         'loan_valuation_lines'   => ['columns' => ['outstanding_principal', 'nominal_remaining', 'fair_value']],
         'loan_import_rows'       => ['columns' => ['data']],
+        'hire_purchases'              => ['columns' => ['installment_amount']],
+        'hire_purchase_installments'  => ['columns' => ['amount']],
+        'hire_purchase_changes'       => ['columns' => ['old_amount', 'new_amount', 'old_total', 'new_total']],
     ],
 ];

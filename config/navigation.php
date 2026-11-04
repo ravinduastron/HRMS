@@ -44,6 +44,11 @@ return [
                 ['label' => 'Monthly deductions',  'url' => '/payroll/loans/deductions', 'can' => 'loans.view', 'live' => true],
                 ['label' => 'Fair value',          'url' => '/payroll/loans/fair-value', 'can' => 'loans.valuation', 'live' => true],
             ]],
+            ['label' => 'Hire purchases', 'icon' => 'chart', 'children' => [
+                ['label' => 'Hire purchases',      'url' => '/payroll/hire-purchases', 'can' => 'hire-purchases.view', 'live' => true],
+                ['label' => 'Vendors',             'url' => '/payroll/hire-purchases/vendors', 'can' => 'hire-purchases.view', 'live' => true],
+                ['label' => 'Monthly deductions',  'url' => '/payroll/hire-purchases/deductions', 'can' => 'hire-purchases.view', 'live' => true],
+            ]],
             ['label' => 'Statutory', 'icon' => 'library', 'children' => [
                 ['label' => 'Tax tables',         'url' => '/payroll/statutory/tax-tables', 'can' => 'statutory.view', 'live' => true],
                 ['label' => 'Contribution rates', 'url' => '/payroll/statutory/rates', 'can' => 'statutory.view', 'live' => true],
