@@ -19,5 +19,8 @@ return [
         'hire_purchases'              => ['columns' => ['installment_amount']],
         'hire_purchase_installments'  => ['columns' => ['amount']],
         'hire_purchase_changes'       => ['columns' => ['old_amount', 'new_amount', 'old_total', 'new_total']],
+        'pay_inputs'                  => ['columns' => ['amount']],
+        'pay_input_history'           => ['columns' => ['old_amount', 'new_amount']],
+        'pay_input_rows'              => ['columns' => ['data']],
     ],
 ];

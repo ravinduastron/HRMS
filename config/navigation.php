@@ -34,6 +34,11 @@ return [
         'heading' => 'Payroll',
         'items' => [
             ['label' => 'Pay periods', 'icon' => 'calendar', 'url' => '/payroll/periods', 'can' => 'pay-periods.view', 'live' => true],
+            ['label' => 'Pay inputs', 'icon' => 'banknotes', 'children' => [
+                ['label' => 'Inputs',            'url' => '/payroll/inputs', 'can' => 'pay-inputs.view', 'live' => true],
+                ['label' => 'Import from Excel', 'url' => '/payroll/inputs/import', 'can' => 'pay-inputs.import', 'live' => true],
+                ['label' => 'History',           'url' => '/payroll/inputs/history', 'can' => 'pay-inputs.view', 'live' => true],
+            ]],
             ['label' => 'Compensation', 'icon' => 'document', 'children' => [
                 ['label' => 'Salary structures', 'url' => '/compensation/structures', 'can' => 'salary-structures.view', 'live' => true],
                 ['label' => 'Pay components',    'url' => '/payroll/components', 'can' => 'pay-components.view', 'live' => true],

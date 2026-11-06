@@ -46,6 +46,11 @@ return [
         'pay-periods.close'    => 'Close a pay period',
         'pay-periods.reopen'   => 'Reopen a closed pay period',
     ],
+    'Pay inputs' => [
+        'pay-inputs.view'   => 'View pay inputs and their history (of your schemes)',
+        'pay-inputs.manage' => 'Enter, replace and remove pay inputs on screen (period must be open)',
+        'pay-inputs.import' => 'Upload pay inputs from Excel, apply and reverse uploads (period must be open)',
+    ],
     'Salary structures' => [
         'salary-structures.view'   => 'View salary structures (of your schemes)',
         'salary-structures.manage' => 'Create and change salary structures (of your schemes)',
