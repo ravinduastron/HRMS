@@ -33,7 +33,7 @@
         'Employee no' => $employee->employee_no, 'Provident fund' => $fundLabel.($fundByHand ? ' (set by hand)' : ' (scheme default)'), 'EPF / MSPS no' => $employee->fund_no, 'Employment type' => $employee->emp_type,
         'Job category' => $employee->ct_name, 'Designation' => $employee->dsg_name, 'Grade' => $employee->grade_name, 'Scheme' => $employee->scheme_name,
         'Department' => $employee->department, 'Section' => $employee->mihcm_section, 'Team' => $employee->team,
-        'Date joined' => $d($employee->date_joined), 'Contract expiry' => $d($employee->contract_expiry_date),
+        'Cost Center' => $employee->cost_center, 'Date joined' => $d($employee->date_joined), 'Contract expiry' => $d($employee->contract_expiry_date),
         'Resigned' => $d($employee->resigned_date), 'Last working day' => $d($employee->last_working_date),
         'Reports to' => trim(($employee->reporting_person_name ?? '').' '.($employee->reporting_person_employee_no ? '('.$employee->reporting_person_employee_no.')' : '')),
     ];

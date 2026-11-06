@@ -66,6 +66,7 @@ class EmployeeMapper
             'mihcm_org_structure' => $org->isEmpty() ? null : $org->sortKeys()->map(fn ($o) => [
                 'code' => $this->str($o['levelCode'] ?? null, 50), 'name' => $this->str($o['levelName'] ?? null, 150), 'level' => (int) ($o['level'] ?? 0),
             ])->values()->all(),
+            'cost_center'   => $this->str($e['costCenterName'] ?? null, 100),
 
             'reporting_person_employee_no' => $this->str($rp['employeeNumber'] ?? $e['reportingPersonEmployeeNumber'] ?? null, 30),
             'reporting_person_name'        => $this->str($rp['displayName2'] ?? $rp['displayName'] ?? $rp['fullName'] ?? null, 150),
