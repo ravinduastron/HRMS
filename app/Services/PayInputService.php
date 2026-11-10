@@ -7,6 +7,7 @@ use App\Models\EmployeeSalaryLine;
 use App\Models\EmployeeSalaryVersion;
 use App\Models\PayComponent;
 use App\Models\PayInput;
+use App\Models\PayInputAddition;
 use App\Models\PayInputHistory;
 use App\Models\PayPeriod;
 use App\Models\Scheme;
@@ -44,7 +45,8 @@ class PayInputService
     }
 
     /**
-     * Which components are on each employee's salary, as the salary stands on the last day of the period.
+     * Which components each employee has for this period: those on their salary as it stands on the last day of the period,
+     * plus any added for this period only (pay_input_additions).
      *
      * @return array<int, array<int, true>> employee id => [component id => true]
      */
@@ -65,6 +67,12 @@ class PayInputService
                     $map[$owner[$l->employee_salary_version_id]][$l->pay_component_id] = true;
                 });
         }
+
+        // Employees added to a component for THIS period only count as having it (the salary itself is not changed)
+        PayInputAddition::withoutGlobalScopes()->where('pay_period_id', $period->id)->whereIn('employee_id', $employeeIds)->get(['employee_id', 'pay_component_id'])
+            ->each(function ($a) use (&$map) {
+                $map[$a->employee_id][$a->pay_component_id] = true;
+            });
 
         return $map;
     }
@@ -192,6 +200,104 @@ class PayInputService
         return $out;
     }
 
+    /* ------------------------------ new employees ------------------------------ */
+
+    /**
+     * Employees who joined after this date are "new" for the period. There is no pay run yet, so this stands in for "not in the previous pay run":
+     * the end of the scheme's previous pay period (or, when there is none, the day before this period starts).
+     */
+    public function newCutoff(PayPeriod $period): string
+    {
+        $prev = PayPeriod::withoutGlobalScopes()->where('scheme_id', $period->scheme_id)->where('period_end', '<', $period->period_start->toDateString())
+            ->orderByDesc('period_end')->first();
+
+        return $prev ? $prev->period_end->toDateString() : $period->period_start->copy()->subDay()->toDateString();
+    }
+
+    public function isNew(Employee $employee, string $cutoff): bool
+    {
+        return $employee->date_joined !== null && $employee->date_joined->toDateString() > $cutoff;
+    }
+
+    /* ------------------------------ add employees to a pay item for one period ------------------------------ */
+
+    /** Payroll-active employees of the period's scheme the user may see who do NOT have the component (on salary or already added). */
+    public function addableEmployees(PayPeriod $period, PayComponent $component): Collection
+    {
+        $employees = Employee::query()->payrollEligible()->where('scheme_id', $period->scheme_id)->orderBy('employee_no')->get();
+        $map = $this->salaryMap($period, $employees->pluck('id')->all());
+
+        return $employees->reject(fn ($e) => isset($map[$e->id][$component->id]))->values();
+    }
+
+    /**
+     * Adds employees to a pay item for this pay period only (the salary is not touched). All or none.
+     *
+     * @return Collection<int, Employee> the employees added
+     */
+    public function addEmployees(PayPeriod $period, PayComponent $component, array $employeeIds, User $by): Collection
+    {
+        PayPeriodService::assertOpen($period);
+        $ids = array_values(array_unique(array_map('intval', $employeeIds)));
+        if (! $ids) {
+            throw ValidationException::withMessages(['employee_ids' => 'Choose at least one employee.']);
+        }
+        if (! $this->isInputComponent($component)) {
+            throw ValidationException::withMessages(['employee_ids' => "{$component->code} cannot be entered per period (it must be active and set to \"entered each period\" or \"variable amount\")."]);
+        }
+
+        return DB::transaction(function () use ($period, $component, $ids, $by) {
+            $employees = Employee::query()->whereIn('id', $ids)->orderBy('employee_no')->get(); // the scheme scope applies
+            if ($employees->count() !== count($ids)) {
+                throw ValidationException::withMessages(['employee_ids' => 'An employee was not found, or is not in your schemes.']);
+            }
+            $map = $this->salaryMap($period, $ids);
+            foreach ($employees as $e) {
+                if ((int) $e->scheme_id !== (int) $period->scheme_id) {
+                    throw ValidationException::withMessages(['employee_ids' => "{$e->employee_no} is not in the scheme of this pay period."]);
+                }
+                if (! $e->is_active || ! $e->is_payroll_active) {
+                    throw ValidationException::withMessages(['employee_ids' => "{$e->employee_no} is inactive or excluded from payroll."]);
+                }
+                if (isset($map[$e->id][$component->id])) {
+                    throw ValidationException::withMessages(['employee_ids' => "{$e->employee_no} already has {$component->code} for this period."]);
+                }
+            }
+            foreach ($employees as $e) {
+                (new PayInputAddition)->forceFill([
+                    'pay_period_id' => $period->id, 'employee_id' => $e->id, 'pay_component_id' => $component->id,
+                    'added_by' => $by->id, 'added_by_name' => $by->name,
+                ])->save();
+            }
+
+            Audit::log('pay_input.employees_added', $period, "{$employees->count()} employee(s) added to {$component->code} for {$period->label()} only",
+                context: ['component' => $component->code, 'count' => $employees->count(), 'employee_ids' => $ids, 'scheme_id' => $period->scheme_id]);
+
+            return $employees;
+        });
+    }
+
+    /** Takes an employee back out of a pay item for this period. Only while the period is Open and no amount was entered for it. */
+    public function removeAddition(PayInputAddition $addition, User $by): void
+    {
+        DB::transaction(function () use ($addition, $by) {
+            $a = PayInputAddition::withoutGlobalScopes()->whereKey($addition->id)->lockForUpdate()->firstOrFail();
+            $period = PayPeriod::withoutGlobalScopes()->findOrFail($a->pay_period_id);
+            PayPeriodService::assertOpen($period);
+
+            $hasAmount = PayInput::withoutGlobalScopes()->where('pay_period_id', $a->pay_period_id)->where('employee_id', $a->employee_id)
+                ->where('pay_component_id', $a->pay_component_id)->exists();
+            if ($hasAmount) {
+                throw ValidationException::withMessages(['addition' => 'An amount is entered for this employee. Remove the amount first (Pay inputs > Remove), then take the employee out.']);
+            }
+
+            $component = PayComponent::findOrFail($a->pay_component_id);
+            $a->delete();
+            Audit::log('pay_input.employee_removed', $period, "Employee removed from {$component->code} for {$period->label()}",
+                context: ['component' => $component->code, 'employee_id' => $a->employee_id, 'scheme_id' => $period->scheme_id]);
+        });
+    }
+
     /* ------------------------------ internals ------------------------------ */
 
     /** Rules shared by the screen and the Excel upload. */
@@ -211,7 +317,7 @@ class PayInputService
         }
         $map = $salaryMap ?? $this->salaryMap($period, [$employee->id]);
         if (! isset($map[$employee->id][$component->id])) {
-            throw ValidationException::withMessages(['amounts' => "{$component->code} is not on the salary of {$employee->employee_no} at the end of this period."]);
+            throw ValidationException::withMessages(['amounts' => "{$component->code} is not on the salary of {$employee->employee_no} at the end of this period, and was not added for this period."]);
         }
     }
 

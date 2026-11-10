@@ -12,6 +12,8 @@ Route::prefix('payroll/inputs')->group(function () {
     Route::get('/', [PayInputController::class, 'index'])->middleware('can:pay-inputs.view')->name('pay-inputs.index');
     Route::get('entry', [PayInputController::class, 'entry'])->middleware('can:pay-inputs.manage')->name('pay-inputs.entry');
     Route::post('entry', [PayInputController::class, 'entrySave'])->middleware('can:pay-inputs.manage')->name('pay-inputs.entry.save');
+    Route::post('entry/employees', [PayInputController::class, 'addEmployees'])->middleware('can:pay-inputs.manage')->name('pay-inputs.entry.add');
+    Route::delete('additions/{addition}', [PayInputController::class, 'removeAddition'])->middleware('can:pay-inputs.manage')->whereNumber('addition')->name('pay-inputs.additions.destroy');
     Route::get('history', [PayInputController::class, 'history'])->middleware('can:pay-inputs.view')->name('pay-inputs.history');
 
     // Excel upload
