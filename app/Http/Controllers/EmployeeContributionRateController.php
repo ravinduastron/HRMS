@@ -54,7 +54,12 @@ class EmployeeContributionRateController extends Controller
 
         $this->statutory->setEmployeeRate($employee, $data['employee_rate'] ?? null, Carbon::parse($data['effective_from']), $data['change_note'], $request->user());
 
-        return redirect()->route('statutory.employee-rates.show', $employee)->with('status', 'Employee contribution rate saved.');
+        // The form on the employee page sends return=employee, so the user lands back on that tab.
+        $back = $request->input('return') === 'employee'
+            ? redirect()->route('employees.show', [$employee, 'tab' => 'statutory'])
+            : redirect()->route('statutory.employee-rates.show', $employee);
+
+        return $back->with('status', 'Employee contribution rate saved.');
     }
 
     /** Ids of employees whose rate in force today is their own (not the default). */

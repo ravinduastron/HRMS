@@ -31,6 +31,12 @@ return [
         'bank-master.add'    => 'Add banks and branches',
         'bank-master.remove' => 'Remove banks and branches',
     ],
+    'Company' => [
+        'company.view'                    => 'View the company details and paying accounts (account numbers masked)',
+        'company.manage'                  => 'Change the company details (also needs all-scheme access)',
+        'company-bank-accounts.manage'    => 'Add, make default, activate, deactivate and remove paying accounts (also needs all-scheme access)',
+        'company-bank-accounts.reveal'    => 'Show full paying account numbers',
+    ],
     'Pay components' => [
         'pay-components.view'     => 'View pay components and use the test panel',
         'pay-components.manage'   => 'Create and change pay components (fixed, input and system types)',

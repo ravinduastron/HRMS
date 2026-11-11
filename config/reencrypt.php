@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\BankAccountService;
+use App\Services\CompanyBankAccountService;
 
 /*
  | Every column that uses an `encrypted` cast must be listed here, so APP_KEY rotation can re-encrypt it.
@@ -9,6 +10,7 @@ use App\Services\BankAccountService;
 return [
     'tables' => [
         'employee_bank_accounts' => ['columns' => ['account_number'], 'after' => [BankAccountService::class, 'rehashAll']],
+        'company_bank_accounts'  => ['columns' => ['account_number'], 'after' => [CompanyBankAccountService::class, 'rehashAll']],
         'employee_salary_lines'  => ['columns' => ['amount']],
         'loans'                  => ['columns' => ['principal']],
         'loan_installments'      => ['columns' => ['principal_amount', 'interest_amount']],
