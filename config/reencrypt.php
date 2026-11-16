@@ -24,5 +24,7 @@ return [
         'pay_inputs'                  => ['columns' => ['amount']],
         'pay_input_history'           => ['columns' => ['old_amount', 'new_amount']],
         'pay_input_rows'              => ['columns' => ['data']],
+        'salary_adjustment_rows'      => ['columns' => ['data']],
+        'salary_adjustment_lines'     => ['columns' => ['old_amount', 'new_amount']],
     ],
 ];

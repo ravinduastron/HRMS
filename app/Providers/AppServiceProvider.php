@@ -21,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Scheme pay settings and employee pay rules; statutory; loans; hire purchases; pay periods; pay inputs; company (same middleware as routes/web.php)
+        // Scheme pay settings and employee pay rules; statutory; loans; hire purchases; pay periods; pay inputs; company; salary adjustments (same middleware as routes/web.php)
         Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/pay_settings.php'));
         Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/statutory.php'));
         Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/loans.php'));
@@ -29,5 +29,6 @@ class AppServiceProvider extends ServiceProvider
         Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/pay_periods.php'));
         Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/pay_inputs.php'));
         Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/company.php'));
+        Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/salary_adjustments.php'));
     }
 }

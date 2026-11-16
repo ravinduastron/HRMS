@@ -66,6 +66,12 @@ return [
         'employee-salary.reveal' => 'Show salary amounts',
         'employee-salary.manage' => 'Assign structures, change salary components, rate basis, hours limit and statutory exemption',
     ],
+    'Salary adjustments' => [
+        'salary-adjustments.view'     => 'View salary adjustments (of your schemes; amounts masked, "Show amounts" needs the salary reveal permission)',
+        'salary-adjustments.manage'   => 'Prepare salary adjustments on screen (increment amount, increment portion, new salary), apply and discard them',
+        'salary-adjustments.import'   => 'Download the Excel sheet, upload salary adjustments, apply and discard those uploads',
+        'salary-adjustments.rollback' => 'Roll back an applied salary adjustment',
+    ],
     'Statutory' => [
         'statutory.view'           => 'View tax tables, contribution rates and employee rates',
         'statutory.manage'         => 'Add tax table versions and EPF / MSPS / ETF rate versions (also needs all-scheme access)',

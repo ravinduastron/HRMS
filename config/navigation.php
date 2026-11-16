@@ -41,6 +41,7 @@ return [
             ]],
             ['label' => 'Compensation', 'icon' => 'document', 'children' => [
                 ['label' => 'Salary structures', 'url' => '/compensation/structures', 'can' => 'salary-structures.view', 'live' => true],
+                ['label' => 'Salary adjustments', 'url' => '/compensation/adjustments', 'can' => 'salary-adjustments.view', 'live' => true],
                 ['label' => 'Pay components',    'url' => '/payroll/components', 'can' => 'pay-components.view', 'live' => true],
                 ['label' => 'Component groups',  'url' => '/payroll/groups', 'can' => 'pay-component-groups.view', 'live' => true],
             ]],
