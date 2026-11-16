@@ -3,7 +3,7 @@
 
 @section('content')
 @php
-    $field = 'block w-full rounded-md border border-slate-300 py-2 px-3 text-sm focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600';
+    $field = 'block rounded-md border border-slate-300 py-2 px-3 text-sm focus:outline-2 focus:-outline-offset-1 focus:outline-brand-600';
     $color = ['staged' => 'amber', 'applied' => 'green', 'rolled_back' => 'red', 'discarded' => 'slate'];
 @endphp
 <x-page-header title="Salary adjustments" description="Increments and other changes to the salary amounts of the employees of a scheme. Every adjustment is reviewed before it is applied and can be rolled back.">
@@ -18,9 +18,11 @@
 </x-page-header>
 
 <x-card :padding="false">
-    <form method="GET" class="flex flex-wrap items-end gap-3 border-b border-slate-200 p-4">
-        <div class="w-64"><x-combobox name="scheme" :options="$schemes->map(fn ($s) => ['value' => $s->id, 'label' => $s->name])->values()" :value="request('scheme')" empty="All schemes" /></div>
-        <select name="status" class="{{ $field }} w-56">
+    <form method="GET" class="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4">
+        <div class="w-64">
+            <x-combobox name="scheme" :options="$schemes->map(fn ($s) => ['value' => $s->id, 'label' => $s->name])->values()" :value="request('scheme')" empty="All schemes" />
+        </div>
+        <select name="status" class="{{ $field }}">
             <option value="">Any status</option>
             @foreach (\App\Models\SalaryAdjustmentBatch::STATUSES as $k => $t)<option value="{{ $k }}" @selected($status === $k)>{{ $t }}</option>@endforeach
         </select>
