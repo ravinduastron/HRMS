@@ -14,7 +14,7 @@
     $fixedLines = $lines->filter(fn ($l) => $isFixed($l) && $l->component)->values();
     $hasAmounts = $lines->contains(fn ($l) => $isFixed($l) && $l->amount !== null);
     $methodText = ['formula' => 'Calculated', 'percentage' => 'Calculated', 'input' => 'Entered each period', 'system' => 'From another module'];
-    $viewUrl = fn ($date) => route('employees.show', ['employee' => $employee, 'tab' => 'salary', 'salary_date' => $date]);
+    $viewUrl = fn ($date, $version = null) => route('employees.show', ['employee' => $employee, 'tab' => 'salary', 'salary_date' => $date, 'salary_version' => $version]);
     $bases = ['monthly' => 'Monthly', 'daily' => 'Daily', 'hourly' => 'Hourly'];
     $basisText = ['monthly' => 'per month', 'daily' => 'per day', 'hourly' => 'per hour'];
     $maxHours = $current?->max_hours !== null ? rtrim(rtrim((string) $current->max_hours, '0'), '.') : null;
@@ -47,7 +47,7 @@
             async reveal() {
                 this.loading = true;
                 try {
-                    const r = await fetch(@js(route('employees.salary.reveal', [$employee, 'date' => $viewDate->toDateString()])), { headers: { Accept: 'application/json' } });
+                    const r = await fetch(@js(route('employees.salary.reveal', [$employee, 'date' => $viewDate->toDateString(), 'version' => $current?->id])), { headers: { Accept: 'application/json' } });
                     if (!r.ok) throw new Error();
                     const j = await r.json();
                     this.amounts = j.amounts;
@@ -239,7 +239,7 @@
                     </td>
                     <td class="px-5 py-3 text-slate-500">{{ $v->created_by_name ?? 'System' }}<span class="block text-xs">{{ $v->created_at->format('d M Y H:i') }}</span></td>
                     <td class="px-5 py-3 text-slate-500">{{ $v->change_note }}</td>
-                    <td class="px-5 py-3 text-right"><a href="{{ $viewUrl($v->effective_from->toDateString()) }}" class="text-xs font-medium text-brand-700 hover:underline">View</a></td>
+                    <td class="px-5 py-3 text-right"><a href="{{ $viewUrl($v->effective_from->toDateString(), $v->id) }}" class="text-xs font-medium text-brand-700 hover:underline">View</a></td>
                 </tr>
             @empty
                 <tr><td colspan="7" class="px-5 py-8 text-center text-slate-500">No salary history yet.</td></tr>

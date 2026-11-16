@@ -75,7 +75,11 @@ class EmployeeController extends Controller
     {
         $user = auth()->user();
         $salaryDate = $this->salary->dateOrToday($request->query('salary_date')); // "view the salary as at this date"
-        $salary = $user->can('employee-salary.view') ? $this->salary->summary($employee, $salaryDate) : null;
+        $versionId = (int) $request->query('salary_version') ?: null;
+        $salary = $user->can('employee-salary.view') ? $this->salary->summary($employee, $salaryDate, $versionId) : null;
+        if ($salary) {
+            $salaryDate = $salary['date'];
+        }
         $canManageSalary = $user->can('employee-salary.manage');
 
         // Attendance and leave tabs share one date range (default: this month so far)

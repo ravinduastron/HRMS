@@ -48,6 +48,13 @@ class EmployeeSalaryService
             ->whereDate('effective_from', '<=', $date->toDateString())->orderByDesc('effective_from')->orderByDesc('id')->first(); // several changes can share a date: the last saved wins
     }
 
+    /** One specific approved version of an employee (used when several share a date). */
+    public function versionFor(Employee $employee, int $versionId): ?EmployeeSalaryVersion
+    {
+        return EmployeeSalaryVersion::with('lines')->where('employee_id', $employee->id)
+            ->where('approval_status', 'approved')->whereKey($versionId)->first();
+    }
+
     /** A valid Y-m-d date from a query string, otherwise today. */
     public function dateOrToday(?string $value): Carbon
     {
@@ -68,14 +75,17 @@ class EmployeeSalaryService
      *
      * @return array{current: ?EmployeeSalaryVersion, versions: Collection, next: ?EmployeeSalaryVersion, date: Carbon}
      */
-    public function summary(Employee $employee, ?Carbon $date = null): array
+    public function summary(Employee $employee, ?Carbon $date = null, ?int $versionId = null): array
     {
         $date = ($date ?? today())->copy()->startOfDay();
 
         $versions = EmployeeSalaryVersion::where('employee_id', $employee->id)->where('approval_status', 'approved')
             ->with(['lines' => fn($q) => $q->select('id', 'employee_salary_version_id', 'pay_component_id', 'component_code', 'component_name')])
             ->orderByDesc('effective_from')->orderByDesc('id')->get();
-        $current = $this->inForce($employee, $date);
+        $current = $versionId ? $this->versionFor($employee, $versionId) : $this->inForce($employee, $date);
+        if ($current && $versionId) {
+            $date = $current->effective_from->copy()->startOfDay(); // view as at the version's own date
+        }
         $current?->load('lines.component.versions');
 
         return [
@@ -150,7 +160,7 @@ class EmployeeSalaryService
                 throw ValidationException::withMessages(['structure_id' => "{$c->code} is inactive or has no calculation. Update the structure first."]);
             }
             $amount = null;
-           if ($this->isFixed($c) && ! $this->isVariable($c)) { // a structure never carries an amount for a variable component
+            if ($this->isFixed($c) && ! $this->isVariable($c)) { // a structure never carries an amount for a variable component
                 $default = $l->default_amount ?? $c->latestVersion()->default_amount;
                 $amount = $default !== null ? Decimal::round(Decimal::make((string) $default), 2) : null;
             }

@@ -107,7 +107,9 @@ class EmployeeSalaryController extends Controller
     public function reveal(Request $request, Employee $employee): JsonResponse
     {
         $date = $this->salary->dateOrToday($request->query('date'));
-        $version = $this->salary->inForce($employee, $date);
+        $version = $request->filled('version')
+            ? $this->salary->versionFor($employee, (int) $request->query('version'))
+            : $this->salary->inForce($employee, $date);
         abort_unless($version, 404);
 
         Audit::log('employee_salary.revealed', $employee, 'Salary amounts viewed (as at '.$date->format('d M Y').')', context: ['version_id' => $version->id, 'as_at' => $date->toDateString()]);
