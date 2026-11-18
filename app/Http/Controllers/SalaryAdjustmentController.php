@@ -55,27 +55,60 @@ class SalaryAdjustmentController extends Controller
             ])->filter(fn ($r) => $r['comps'])->values();
             $hidden = $employees->count() - $rows->count();
 
-            $cfg = ['rows' => $rows->all(), 'components' => $components->map(fn ($c) => ['id' => (string) $c->id, 'code' => $c->code, 'name' => $c->name])->values()->all()];
+            $cfg = [
+                'rows' => $rows->all(),
+                'components' => $components->map(fn ($c) => ['id' => (string) $c->id, 'code' => $c->code, 'name' => $c->name])->values()->all(),
+                'layout' => old('layout') === 'each' ? 'each' : 'same',
+                'mode' => array_key_exists((string) old('mode'), SalaryAdjustment::MODES) ? old('mode') : 'amount',
+                // current amounts are fetched on demand (audited) and only for users who may show salary amounts
+                'currentUrl' => $request->user()->can('employee-salary.reveal')
+                    ? route('salary-adjustments.current', ['scheme' => $scheme->id, 'date' => $pick['date']->toDateString()]) : null,
+            ];
         }
 
         return view('salary.adjustments.create', $pick + ['cfg' => $cfg, 'hidden' => $hidden]);
     }
 
+    /** Both ways stage an adjustment first: nothing changes until it is reviewed and applied. */
     public function store(Request $request): RedirectResponse
     {
         $allowed = Scheme::visibleTo($request->user())->pluck('id')->all();
-        $d = $request->validate([
-            'scheme' => ['required', 'integer', Rule::in($allowed)], 'effective_from' => ['required', 'date'], 'reason' => ['required', 'string', 'max:500'],
-            'mode' => ['required', Rule::in(array_keys(SalaryAdjustment::MODES))], 'value' => ['required', 'string', 'max:20'],
-            'component_ids' => ['required', 'array', 'min:1', 'max:50'], 'component_ids.*' => ['integer'],
-            'employee_ids' => ['required', 'array', 'min:1', 'max:2000'], 'employee_ids.*' => ['integer'],
-        ], ['scheme.in' => 'You can only use schemes that are allocated to you.', 'employee_ids.required' => 'Choose at least one employee.', 'component_ids.required' => 'Choose at least one component.']);
+        $each = $request->input('layout') === 'each';
 
+        $rules = [
+            'layout' => ['nullable', 'in:same,each'],
+            'scheme' => ['required', 'integer', Rule::in($allowed)], 'effective_from' => ['required', 'date'], 'reason' => ['required', 'string', 'max:500'],
+            'mode' => ['required', Rule::in(array_keys(SalaryAdjustment::MODES))],
+        ];
+        $rules += $each
+            ? ['cells_json' => ['required', 'string', 'max:3000000']]
+            : [
+                'value' => ['required', 'string', 'max:20'],
+                'component_ids' => ['required', 'array', 'min:1', 'max:50'], 'component_ids.*' => ['integer'],
+                'employee_ids' => ['required', 'array', 'min:1', 'max:2000'], 'employee_ids.*' => ['integer'],
+            ];
+
+        $d = $request->validate($rules, [
+            'scheme.in' => 'You can only use schemes that are allocated to you.', 'employee_ids.required' => 'Choose at least one employee.',
+            'component_ids.required' => 'Choose at least one component.', 'cells_json.required' => 'Enter a value for at least one employee.',
+        ]);
+        $scheme = Scheme::findOrFail($d['scheme']);
+
+        $entries = $each ? $this->entriesFromCells($d, $scheme) : $this->entriesFromSameValue($d, $scheme);
+
+        // "Same value" leaves out combinations an employee does not have; per-employee cells are only offered where they exist, so a missing one is an error.
+        $batch = $this->service->stage($scheme, Carbon::parse($d['effective_from']), $d['reason'], 'screen', null, $entries, $request->user(), ! $each);
+
+        return redirect()->route('salary-adjustments.show', $batch)->with('status', 'Review the old and new amounts, then confirm.');
+    }
+
+    /** One mode and value for every chosen employee and component. */
+    private function entriesFromSameValue(array $d, Scheme $scheme): array
+    {
         if (SalaryAdjustment::value($d['mode'], $d['value']) === null) {
             throw ValidationException::withMessages(['value' => SalaryAdjustment::valueHelp($d['mode'])]);
         }
 
-        $scheme = Scheme::findOrFail($d['scheme']);
         $compIds = array_values(array_unique(array_map('intval', $d['component_ids'])));
         $empIds = array_values(array_unique(array_map('intval', $d['employee_ids'])));
 
@@ -95,9 +128,73 @@ class SalaryAdjustmentController extends Controller
             }
         }
 
-        $batch = $this->service->stage($scheme, Carbon::parse($d['effective_from']), $d['reason'], 'screen', null, $entries, $request->user(), true);
+        return $entries;
+    }
 
-        return redirect()->route('salary-adjustments.show', $batch)->with('status', 'Review the old and new amounts, then confirm.');
+    /** One mode for the screen, a value of its own for each employee and component. A blank cell is not sent. */
+    private function entriesFromCells(array $d, Scheme $scheme): array
+    {
+        $cells = json_decode($d['cells_json'], true);
+        if (! is_array($cells)) {
+            throw ValidationException::withMessages(['cells_json' => 'The values could not be read. Reload the page and try again.']);
+        }
+
+        $pairs = [];
+        $empIds = $compIds = [];
+        foreach ($cells as $emp => $comps) {
+            if (! is_array($comps)) {
+                continue;
+            }
+            foreach ($comps as $comp => $v) {
+                if (! is_scalar($v) || trim((string) $v) === '') {
+                    continue;
+                }
+                $pairs[] = [(int) $emp, (int) $comp, trim((string) $v)];
+                $empIds[(int) $emp] = true;
+                $compIds[(int) $comp] = true;
+            }
+        }
+        if (! $pairs) {
+            throw ValidationException::withMessages(['cells_json' => 'Enter a value for at least one employee.']);
+        }
+
+        $employees = Employee::query()->payrollEligible()->where('scheme_id', $scheme->id)->whereIn('id', array_keys($empIds))->get()->keyBy('id'); // the scheme scope applies
+        if ($employees->count() !== count($empIds)) {
+            throw ValidationException::withMessages(['cells_json' => 'An employee was not found, is not in this scheme, or is not in payroll.']);
+        }
+        $components = $this->service->components()->whereIn('id', array_keys($compIds))->keyBy('id');
+        if ($components->count() !== count($compIds)) {
+            throw ValidationException::withMessages(['cells_json' => 'A component is inactive or does not carry an amount.']);
+        }
+
+        usort($pairs, fn ($a, $b) => strcmp($employees[$a[0]]->employee_no, $employees[$b[0]]->employee_no) ?: $a[1] <=> $b[1]);
+
+        return array_map(fn ($p) => [
+            'row' => null, 'employee_no' => $employees[$p[0]]->employee_no, 'component' => $components[$p[1]]->code, 'mode_raw' => $d['mode'], 'value_raw' => $p[2],
+        ], $pairs);
+    }
+
+    /** Current amounts of the scheme on a date, on demand, always logged. Only for users who may show salary amounts. */
+    public function current(Request $request): JsonResponse
+    {
+        $d = $request->validate(['scheme' => ['required', 'integer'], 'date' => ['required', 'date']]);
+        $scheme = Scheme::visibleTo($request->user())->findOrFail($d['scheme']);
+        $date = Carbon::parse($d['date'])->startOfDay();
+
+        $ids = Employee::query()->payrollEligible()->where('scheme_id', $scheme->id)->pluck('id')->all();
+        $out = [];
+        foreach ($this->service->salaryAt($ids, $date) as $empId => $s) {
+            foreach ($s['lines'] as $cid => $l) {
+                if ($l['amount'] !== null) {
+                    $out[$empId][$cid] = $l['amount'];
+                }
+            }
+        }
+
+        Audit::log('salary_adjustment.current_viewed', $scheme, "Current salary amounts viewed while preparing an adjustment for {$scheme->name}",
+            context: ['scheme_id' => $scheme->id, 'as_at' => $date->toDateString(), 'employees' => count($out)]);
+
+        return response()->json(['amounts' => (object) $out, 'seconds' => (int) config('salary.reveal_seconds')])->header('Cache-Control', 'no-store');
     }
 
     /* ------------------------------ Excel ------------------------------ */

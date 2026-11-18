@@ -12,6 +12,8 @@ Route::prefix('compensation/adjustments')->group(function () {
     Route::get('/', [SalaryAdjustmentController::class, 'index'])->middleware('can:salary-adjustments.view')->name('salary-adjustments.index');
     Route::get('new', [SalaryAdjustmentController::class, 'create'])->middleware('can:salary-adjustments.manage')->name('salary-adjustments.create');
     Route::post('new', [SalaryAdjustmentController::class, 'store'])->middleware('can:salary-adjustments.manage')->name('salary-adjustments.store');
+    // Current amounts for the per-employee grid: on demand and audited, so it needs the salary reveal permission as well
+    Route::get('current', [SalaryAdjustmentController::class, 'current'])->middleware(['can:salary-adjustments.manage', 'can:employee-salary.reveal'])->name('salary-adjustments.current');
 
     Route::get('import', [SalaryAdjustmentController::class, 'importIndex'])->middleware('can:salary-adjustments.import')->name('salary-adjustments.import.index');
     Route::get('import/template', [SalaryAdjustmentController::class, 'template'])->middleware('can:salary-adjustments.import')->name('salary-adjustments.import.template');
