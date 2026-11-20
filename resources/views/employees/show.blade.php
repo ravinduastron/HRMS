@@ -18,6 +18,7 @@
         'loans'      => ['label' => 'Loans', 'ready' => true, 'visible' => auth()->user()->can('loans.view')],
         'hirepurchases' => ['label' => 'Hire purchases', 'ready' => true, 'visible' => auth()->user()->can('hire-purchases.view')],
         'statutory'  => ['label' => 'Statutory', 'ready' => true, 'visible' => auth()->user()->can('statutory.view')],
+        'costcenter' => ['label' => 'Cost center', 'ready' => true, 'visible' => auth()->user()->can('cost-centers.view')],
         'history'    => ['label' => 'History', 'ready' => true],
     ];
     $initialTab = array_key_exists(request()->string('tab')->toString(), $tabs) ? request()->string('tab')->toString() : 'profile';
@@ -34,7 +35,7 @@
         'Employee no' => $employee->employee_no, 'Provident fund' => $fundLabel.($fundByHand ? ' (set by hand)' : ' (scheme default)'), 'EPF / MSPS no' => $employee->fund_no, 'Employment type' => $employee->emp_type,
         'Job category' => $employee->ct_name, 'Designation' => $employee->dsg_name, 'Grade' => $employee->grade_name, 'Scheme' => $employee->scheme_name,
         'Department' => $employee->department, 'Section' => $employee->mihcm_section, 'Team' => $employee->team,
-        'Cost Center' => $employee->cost_center, 'Date joined' => $d($employee->date_joined), 'Contract expiry' => $d($employee->contract_expiry_date),
+        'MiHCM cost center' => $employee->mihcm_costcenter, 'Date joined' => $d($employee->date_joined), 'Contract expiry' => $d($employee->contract_expiry_date),
         'Resigned' => $d($employee->resigned_date), 'Last working day' => $d($employee->last_working_date),
         'Reports to' => trim(($employee->reporting_person_name ?? '').' '.($employee->reporting_person_employee_no ? '('.$employee->reporting_person_employee_no.')' : '')),
     ];
@@ -110,6 +111,7 @@
     @can('loans.view')@include('employees.tabs._loans')@endcan
     @can('hire-purchases.view')@include('employees.tabs._hire_purchases')@endcan
     @can('statutory.view')@include('employees.tabs._statutory')@endcan
+    @can('cost-centers.view')@include('employees.tabs._cost_center')@endcan
 
     <div x-show="tab === 'history'" x-cloak class="space-y-6">
         <x-card title="MiHCM sync changes" :padding="false">

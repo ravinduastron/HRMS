@@ -30,5 +30,6 @@ class AppServiceProvider extends ServiceProvider
         Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/pay_inputs.php'));
         Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/company.php'));
         Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/salary_adjustments.php'));
+        Route::middleware(['web', 'auth', EnforceAccountPolicy::class])->group(base_path('routes/cost_centers.php'));
     }
 }

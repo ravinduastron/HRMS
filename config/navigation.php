@@ -61,6 +61,10 @@ return [
                 ['label' => 'Contribution rates', 'url' => '/payroll/statutory/rates', 'can' => 'statutory.view', 'live' => true],
                 ['label' => 'Employee rates',     'url' => '/payroll/statutory/employee-rates', 'can' => 'statutory.view', 'live' => true],
             ]],
+            ['label' => 'Cost centers', 'icon' => 'chart', 'children' => [
+                ['label' => 'Cost center tree',     'url' => '/payroll/cost-centers', 'can' => 'cost-centers.view', 'live' => true],
+                ['label' => 'Assign to employees',  'url' => '/payroll/cost-centers/assign', 'can' => 'cost-centers.assign', 'live' => true],
+            ]],
         ],
     ],
     [

@@ -116,4 +116,9 @@ return [
         'roles.edit'   => 'Edit roles & permissions',
         'roles.toggle' => 'Activate / deactivate roles',
     ],
+    'Cost centers' => [
+        'cost-centers.view'   => 'View the cost center tree and employee cost centers (of your schemes)',
+        'cost-centers.manage' => 'Add, rename, activate and deactivate cost centers (also needs all-scheme access)',
+        'cost-centers.assign' => 'Assign cost centers to employees (of your schemes)',
+    ],
 ];
